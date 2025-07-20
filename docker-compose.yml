@@ -1,0 +1,27 @@
+services:
+  producer:
+    build:
+      context: ./docker/producer
+    container_name: producer
+    depends_on:
+      - consumer
+    restart: on-failure
+    healthcheck:
+      test: [ "CMD", "pgrap", "-f", "producer.py" ]
+      interval: 5m
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+  consumer:
+    build:
+      context: ./docker/consumer
+    container_name: consumer
+    ports:
+      - "2575:2575"
+    restart: on-failure
+    healthcheck:
+      test: [ "CMD", "pgrep", "-f", "consumer.py" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
