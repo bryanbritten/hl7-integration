@@ -25,3 +25,22 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+  minio:
+    build:
+      context: ./docker/storage/minio
+    container_name: minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    restart: on-failure
+  minio-client:
+    build:
+      context: ./docker/storage/minio-client
+    container_name: minio-client
+    depends_on:
+      - minio
+    restart: on-failure
+volumes:
+  minio-data:
