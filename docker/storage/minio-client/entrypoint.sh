@@ -9,6 +9,8 @@ mc mb --ignore-existing local/silver
 mc anonymous set public local/silver
 mc mb --ignore-existing local/gold
 mc anonymous set public local/gold
+mc mb --ignore-existing local/deadletter
+mc anonymous set public local/deadletter
 
 # keep the container alive
 tail -f /dev/null

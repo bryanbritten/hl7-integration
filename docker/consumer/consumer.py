@@ -39,12 +39,11 @@ def store_message(content: str) -> None:
     Uploads an HL7 message to MinIO with a timestamped key.
     """
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
-    object_name = f"adt/a01/{timestamp}.hl7"
+    object_name = f"unprocessed/adt/a01/{timestamp}.hl7"
     try:
         s3.put_object(
             Bucket=MINIO_BUCKET, Key=object_name, Body=content.encode("utf-8")
         )
-
     # In production, specific Exceptions should be used for known or foreseeable issues
     except Exception as e:
         print(f"Error storing message: {e}")

@@ -42,5 +42,18 @@ services:
     depends_on:
       - minio
     restart: on-failure
+  transformer:
+    build:
+      context: ./docker/transformer
+    container_name: transformer
+    depends_on:
+      - minio
+    restart: on-failure
+    healthcheck:
+      test: [ "CMD", "pgrep", "-f", "entrypoint.py" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 volumes:
   minio-data:
