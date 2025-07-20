@@ -7,6 +7,7 @@ The goal of this project is to replicate the data flow of `ADT_A01` messages fro
 The pipeline is containerized using Docker. A container is created for each of the following services:
 - `producer`: Generates a stream of dynamically generated `ADT_A01` messages.  
 - `consumer`: Receives and stores the raw messages.
+- `minio` & `minio-client`: Acts as a proxy for AWS S3 storage.
 - `transformer`: Reads and processes the raw messages.  
 - `fhir-converter`: Converts `ADT_A01` messages from HL7v2 to FHIR.  
 - `logger`: Monitors the pipeline, aggregets performance metrics, and alerts on errors.
@@ -19,15 +20,13 @@ The `faker` library is used to generate random values for names, addresses, SSNs
 
 The `ADT_A01` schema was defined with the help of definitions provided by [Caristix](https://hl7-definition.caristix.com/v2/HL7v2.5/Segments). 
 
-### Storage
-
-`minio` is used to replicate the use of an S3 bucket. A medallion-like architecture is utilized while processing the data. The `consumer` service ingests the raw message and saves in a "bronze" layer, which represents unprocessed data. The `transformer` service reads from the "bronze" layer and validates the messages using the `hl7apy` library in Python. It then performs a series of data quality checks using the same library. If the validation and data quality checks all pass, the raw message is saved in a "silver" layer. Otherwise, the raw message is saved in a `deadletter` bucket for manual review. 
-
-Typically, the "silver" layer would represent data that has been transformed in some way. Here, I am using the "silver" layer to represent data that has been validated and QA'd and is ready for transformation into a FHIR format, which is what will be saved in the "gold" layer, which represents data ready for analytical querying.
-
 ### Transformer
 
-TODO: write documentation for the `transformer` service.
+The `transformer` service reads from the "bronze" layer and validates the messages using the `hl7apy` library in Python. It then performs a series of data quality checks using the same library. If the validation and data quality checks all pass, the raw message is saved in a "silver" layer. Otherwise, the raw message is saved in a `deadletter` bucket for manual review. 
+
+### Storage
+
+`minio` is used to replicate the use of an S3 bucket. A medallion-like architecture is utilized while processing the data. The `consumer` service ingests the raw message and saves in a "bronze" layer, which represents unprocessed data. Typically, the "silver" layer would represent data that has been transformed in some way, but I am using it to represent data that has been validated and QA'd and is ready for conversion into a FHIR format. This FHIR version of the message is what will be saved in the "gold" layer, which represents data ready for analytical querying.
 
 ### FHIR Converter
 
