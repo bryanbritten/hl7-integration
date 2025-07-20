@@ -13,7 +13,7 @@ The pipeline is containerized using Docker. A container is created for each of t
 
 ### Producer
 
-The `producer` generates `ADT_A01` messages dynamically by making use of the `faker` and `random` libraries in Python. The [hl7_generators.py](https://github.com/bryanbritten/HL7-Integration/blob/main/docker/producer/hl7_generators.py) file defines the functions that create the segments in an `ADT_A01` message. The [helpers.py](https://github.com/bryanbritten/HL7-Integration/blob/main/docker/producer/helpers.py) file is responsible for generating the random values that go in each field of the different segments. 
+The `producer` generates `ADT_A01` messages dynamically by making use of the `faker` and `random` libraries in Python. The [hl7_generators.py](https://github.com/bryanbritten/hl7-integration/blob/main/docker/producer/hl7_generators.py) file defines the functions that create the segments in an `ADT_A01` message. The [helpers.py](https://github.com/bryanbritten/hl7-integration/blob/main/docker/producer/helpers.py) file is responsible for generating the random values that go in each field of the different segments. 
 
 The `faker` library is used to generate random values for names, addresses, SSNs, UUIDs, phone numbers, and birth dates. Additionally, a decorator called `with_error_rate` is used on each value generator to randomly introduce missing values. The error rate is adjustable for each value-generating function.
 
