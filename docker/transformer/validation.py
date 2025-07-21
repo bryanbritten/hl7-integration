@@ -16,13 +16,13 @@ class HL7Validator:
         Parses the raw HL7 message if valid.
 
         Returns: hl7apy.core.Message - The parsed HL7 message.
-        Raises: hl7apy.exceptions.HL7ParseError if the message is invalid.
         """
         try:
             parsed_message = parse_message(raw_message)
             return parsed_message
         except ParserError as e:
-            raise e
+            print(f"Failed to parse message.")
+            return Message("ADT_A01")
 
     def has_msh_segment(self) -> bool:
         """

@@ -1,6 +1,8 @@
 import boto3
 from botocore.config import Config
+import json
 from validation import HL7Validator
+from quality_assurance import ADTA01QualityChecker
 import time
 
 MINIO_ENDPOINT = "minio:9000"
@@ -68,10 +70,12 @@ def main() -> None:
             continue
 
         validator = HL7Validator(message)
-        if not validator.message_is_valid():
+        checker = ADTA01QualityChecker(validator.parsed_message)
+        issues = checker.run_all_checks()
+        if not validator.message_is_valid() or len(issues) > 0:
             s3.put_object(
                 Bucket=MINIO_DEADLETTER_BUCKET,
-                Key=key,
+                Key=key.replace("unprocessed/adt/a01/", "adt/a01/messages/"),  # type: ignore
                 Body=message,
             )
 
@@ -83,12 +87,26 @@ def main() -> None:
                 print(f"EVN segment is invalid in message {key}.")
             elif not validator.pv1_segment_is_valid():
                 print(f"PV1 segment is invalid in message {key}.")
+            elif len(issues) > 0:
+                issues_json = json.dumps(issues)
+                issues_file_name = key.replace(
+                    "unprocessed/adt/a01/", "adt/a01/issues/"
+                ).replace(  # type: ignore
+                    ".hl7", "-issues.json"
+                )
+                s3.put_object(
+                    Bucket=MINIO_DEADLETTER_BUCKET,
+                    Key=issues_file_name,
+                    Body=issues_json.encode("utf-8"),
+                    ContentType="application/json",
+                )
+                print(f"Message {key} failed data quality checks.")
             else:
                 print(f"Message {key} failed to parse.")
         else:
             s3.put_object(
-                Bucket=MINIO_SILVER_BUCKET,
-                Key=key,
+                Bucket=MINIO_DEADLETTER_BUCKET,
+                Key=key.replace("unprocessed/adt/a01/", "adt/a01/messages/"),  # type: ignore
                 Body=message,
             )
         move_message_to_processed(key, key.replace("unprocessed", "processed"))  # type: ignore
