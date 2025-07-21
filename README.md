@@ -59,7 +59,9 @@ If this were a production environment, there are a few things that could/should 
 
 - Testing
 - Message queues
-- Kubernetes (for scaling the services based on need)
+- Kubernetes (for scaling generation and consumption services based on need)
 - Extended message format handling (`ADT_03`, `ORU_R01`, etc)
 - Improved data quality checks
 - Business logic checks
+- More complex `ADT_A01` messages (repeated segments, z-segments, erroneous segments, etc.)
+- Validation and quality quecks on the FHIR data
