@@ -44,7 +44,8 @@ services:
     restart: on-failure
   transformer:
     build:
-      context: ./docker/transformer
+      context: .
+      dockerfile: docker/transformer/Dockerfile
     container_name: transformer
     depends_on:
       - minio
@@ -68,7 +69,8 @@ services:
       start_period: 10s
   fhir-transformer:
     build:
-      context: ./docker/fhir-transformer
+      context: .
+      dockerfile: docker/fhir-transformer/Dockerfile
     container_name: fhir-transformer
     depends_on:
       - minio
