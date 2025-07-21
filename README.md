@@ -15,7 +15,7 @@ The pipeline is containerized using Docker. A container is created for each of t
 - `transformer`: Reads and processes the raw messages.  
 - `fhir-converter`: Converts `ADT_A01` messages from HL7v2 to FHIR.  
 - `fhir-transformer`: Reads messages from the `silver` layer and stores the FHIR equivalent in the `gold` layer.  
-- `logger`: Monitors the pipeline, aggregets performance metrics, and alerts on errors.
+- `logger`: Monitors the pipeline, aggregets performance metrics, and alerts on errors. (currently not implemented)
 
 ### Producer
 
@@ -37,7 +37,7 @@ The `transformer` service reads from the "bronze" layer and validates the messag
 
 The conversion to FHIR is done with a containered version of the [Microsoft FHIR Converter](https://github.com/microsoft/FHIR-Converter). The image can be found [here](https://hub.docker.com/r/microsoft/healthcareapis-fhir-converter).
 
-### Logger
+### Logger (currently not implemented)
 
 The `logger` service makes use of Grafana and Prometheous to monitor all activity in the `consumer` and `transformer` services. The following metrics are captured:
 - Number of messages that failed validation  
@@ -53,3 +53,13 @@ Running this pipeline locally requires Docker. If you have Docker installed, fol
 2. Navigate into the directory created by Step 1.  
 3. Run `docker compose up --build` from your terminal.  
 
+### Next steps
+
+If this were a production environment, there are a few things that could/should be added to improve this pipeline, including:
+
+- Testing
+- Message queues
+- Kubernetes (for scaling the services based on need)
+- Extended message format handling (`ADT_03`, `ORU_R01`, etc)
+- Improved data quality checks
+- Business logic checks
