@@ -165,6 +165,7 @@ def build_pv1_segment(sequence_number: int = 1) -> bytes:
     pv1_17 = generate_doctor_name()
     pv1_18_to_43 = "^" * 26
     pv1_44 = generate_random_date_time()
+    pv1_45 = generate_random_date_time()
 
     return SEPARATOR.join(
         [
@@ -188,5 +189,6 @@ def build_pv1_segment(sequence_number: int = 1) -> bytes:
             pv1_17,
             pv1_18_to_43,
             pv1_44,
+            pv1_45,
         ]
     ).encode("utf-8")
