@@ -2,6 +2,10 @@
 
 The goal of this project is to replicate the data flow of `ADT_A01` messages from providers (i.e. hospitals, clinics, etc.) and the work that a Data Integration Engineer would do to ingest that data.
 
+### Disclaimer
+
+This project is primarily focused on showing familiarity with tools like Docker, S3, and Python, as well as familiarity with healthcare data, including `ADT_A01` messages, MLLP protocol, and the `hl7apy` library. The intention is to keep this pipeline closer to a proof of concept than to production-ready code. As a result, there are some areas that do not adhere to best practices, including the use of the general `Exception` and not making use of a `.env` file to hold environment variables. 
+
 ### Architecture
 
 The pipeline is containerized using Docker. A container is created for each of the following services:
