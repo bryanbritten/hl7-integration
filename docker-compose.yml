@@ -81,5 +81,16 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+  prometheus:
+    build:
+      context: ./docker/logger/prometheus
+    container_name: prometheus
+    restart: on-failure
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9090" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 volumes:
   minio-data:

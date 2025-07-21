@@ -3,5 +3,5 @@ WORKDIR /consumer
 COPY consumer.py /consumer/consumer.py
 RUN mkdir /messages
 RUN pip install --no-cache-dir boto3
-EXPOSE 2575
+EXPOSE 2575 8000
 CMD ["python", "consumer.py"]

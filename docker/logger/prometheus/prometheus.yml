@@ -1,0 +1,11 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'hl7_services'
+    static_configs:
+      - targets:
+          - 'producer:8000'
+          - 'consumer:8000'
+          - 'transformer:8000'
+          - 'fhir-transformer:8000'
