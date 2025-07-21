@@ -55,5 +55,29 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+  fhir-converter:
+    build:
+      context: ./docker/fhir-converter
+    container_name: fhir-converter
+    restart: on-failure
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/health/check" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+  fhir-transformer:
+    build:
+      context: ./docker/fhir-transformer
+    container_name: fhir-transformer
+    depends_on:
+      - minio
+    restart: on-failure
+    healthcheck:
+      test: [ "CMD", "pgrep", "-f", "fhir-transformer.py" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 volumes:
   minio-data:

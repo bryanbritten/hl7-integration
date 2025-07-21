@@ -1,17 +1,18 @@
 import json
 import time
+from typing import Any
 
 import boto3
+import requests
 from botocore.config import Config
-from quality_assurance import ADTA01QualityChecker
-from validation import HL7Validator
 
 MINIO_ENDPOINT = "minio:9000"
 MINIO_ACCESS_KEY = "admin"
 MINIO_SECRET_KEY = "password123"
-MINIO_BRONZE_BUCKET = "bronze"
 MINIO_SILVER_BUCKET = "silver"
+MINIO_GOLD_BUCKET = "gold"
 MINIO_DEADLETTER_BUCKET = "deadletter"
+FHIR_CONVERTER_API_VERSION = "2024-05-01-preview"
 POLL_INTERVAL = 10  # seconds
 
 s3 = boto3.client(
@@ -48,67 +49,71 @@ def get_message_from_s3(bucket: str) -> tuple[str, bytes] | tuple[None, None]:
         return None, None
 
 
+def convert_hl7_to_fhir(
+    message: bytes, message_type: str = "ADT_A01"
+) -> dict[str, Any]:
+    URL = f"http://fhir-converter:8080/convertToFhir?api-version={FHIR_CONVERTER_API_VERSION}"
+    data = {
+        "InputDataFormat": "Hl7v2",
+        "RootTemplateName": message_type,
+        "InputDataString": message.decode("utf-8"),
+    }
+    response = requests.post(URL, json=data)
+    response.raise_for_status()
+    return response.json()
+
+
 def move_message_to_processed(source_key: str, destination_key: str) -> None:
     """
     Effectively changes the prefix of the key to move the message from "bronze/unprocessed"
     to "bronze/processed".
     """
     try:
-        copy_source = {"Bucket": MINIO_BRONZE_BUCKET, "Key": source_key}
+        copy_source = {"Bucket": MINIO_SILVER_BUCKET, "Key": source_key}
         s3.copy_object(
-            Bucket=MINIO_BRONZE_BUCKET, CopySource=copy_source, Key=destination_key
+            Bucket=MINIO_SILVER_BUCKET, CopySource=copy_source, Key=destination_key
         )
-        s3.delete_object(Bucket=MINIO_BRONZE_BUCKET, Key=source_key)
+        s3.delete_object(Bucket=MINIO_SILVER_BUCKET, Key=source_key)
     except Exception as e:
         print(f"Error moving message: {e}")
 
 
 def main() -> None:
     while True:
-        key, message = get_message_from_s3(MINIO_BRONZE_BUCKET)
+        key, message = get_message_from_s3(MINIO_SILVER_BUCKET)
         if not message:
             time.sleep(POLL_INTERVAL)
             continue
 
-        validator = HL7Validator(message)
-        checker = ADTA01QualityChecker(validator.parsed_message)
-        issues = checker.run_all_checks()
-        if not validator.message_is_valid() or len(issues) > 0:
+        fhir_data = convert_hl7_to_fhir(message=message, message_type="ADT_A01")
+        if fhir_data is None:
             s3.put_object(
                 Bucket=MINIO_DEADLETTER_BUCKET,
                 Key=key.replace("unprocessed/adt/a01/", "adt/a01/messages/"),  # type: ignore
                 Body=message,
             )
-
-            if not validator.msh_segment_is_valid():
-                print(f"MSH segment is invalid in message {key}.")
-            elif not validator.pid_segment_is_valid():
-                print(f"PID segment is invalid in message {key}.")
-            elif not validator.evn_segment_is_valid():
-                print(f"EVN segment is invalid in message {key}.")
-            elif not validator.pv1_segment_is_valid():
-                print(f"PV1 segment is invalid in message {key}.")
-            elif len(issues) > 0:
-                issues_json = json.dumps(issues)
-                issues_file_name = key.replace(  # type: ignore
-                    "unprocessed/adt/a01/", "adt/a01/issues/"
-                ).replace(".hl7", "-issues.json")
-                s3.put_object(
-                    Bucket=MINIO_DEADLETTER_BUCKET,
-                    Key=issues_file_name,
-                    Body=issues_json.encode("utf-8"),
-                    ContentType="application/json",
-                )
-                print(f"Message {key} failed data quality checks.")
-            else:
-                print(f"Message {key} failed to parse.")
+            issue = {
+                "type": "conversion",
+                "severity": 5,
+                "message": "Failed to convert to FHIR.",
+            }
+            issue_json = json.dumps(issue)
+            s3.put_object(
+                Bucket=MINIO_DEADLETTER_BUCKET,
+                Key=key.replace("unprocessed/adt/a01/", "adt/a01/issues/"),  # type: ignore
+                Body=issue_json,
+                ContentType="application/json",
+            )
         else:
             s3.put_object(
-                Bucket=MINIO_SILVER_BUCKET,
-                Key=key,
-                Body=message,
+                Bucket=MINIO_GOLD_BUCKET,
+                Key=key.replace("unprocessed/", "").replace(".hl7", ".json"),  # type: ignore
+                Body=json.dumps(fhir_data),
+                ContentType="application/json",
             )
-        move_message_to_processed(key, key.replace("unprocessed", "processed"))  # type: ignore
+        move_message_to_processed(
+            source_key=key, destination_key=key.replace("unprocessed", "processed")
+        )  # type: ignore
 
 
 if __name__ == "__main__":

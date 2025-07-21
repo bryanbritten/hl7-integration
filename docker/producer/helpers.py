@@ -1,7 +1,7 @@
 import functools
 import random
-
 from datetime import datetime
+
 from faker import Faker
 
 faker = Faker()
@@ -165,7 +165,7 @@ def generate_admission_type() -> str:
     return random.choice(["A", "C", "E", "L", "N", "R", "U"])
 
 
-@with_error_rate(error_rate=0.75)
+@with_error_rate(error_rate=0.15)
 def generate_doctor_name() -> str:
     """
     Generates a random doctor name.
