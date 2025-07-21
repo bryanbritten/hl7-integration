@@ -85,9 +85,24 @@ services:
     build:
       context: ./docker/logger/prometheus
     container_name: prometheus
+    ports:
+      - "9090:9090"
     restart: on-failure
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:9090" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+  grafana:
+    build:
+      context: ./docker/logger/grafana
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    restart: on-failure
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:3000" ]
       interval: 10s
       timeout: 5s
       retries: 5
