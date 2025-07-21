@@ -4,4 +4,7 @@ target-version = ['py312']
 
 [tool.autohooks]
 mode = "pythonpath"
-pre-commit = ["autohooks.plugins.black", "autohooks.plugins.ruff.format"]
+pre-commit = ["autohooks.plugins.black", "autohooks.plugins.ruff.format", "autohooks.plugins.isort"]
+
+[tool.isort]
+profile = "black"
