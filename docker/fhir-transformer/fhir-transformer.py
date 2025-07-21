@@ -112,8 +112,9 @@ def main() -> None:
                 ContentType="application/json",
             )
         move_message_to_processed(
-            source_key=key, destination_key=key.replace("unprocessed", "processed")
-        )  # type: ignore
+            source_key=key,
+            destination_key=key.replace("unprocessed", "processed"),  # type: ignore
+        )
 
 
 if __name__ == "__main__":
