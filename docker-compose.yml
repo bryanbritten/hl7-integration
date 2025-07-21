@@ -14,7 +14,8 @@ services:
       start_period: 30s
   consumer:
     build:
-      context: ./docker/consumer
+      context: .
+      dockerfile: docker/consumer/Dockerfile
     container_name: consumer
     ports:
       - "2575:2575"
