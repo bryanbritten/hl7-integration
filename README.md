@@ -11,9 +11,10 @@ This project is primarily focused on showing familiarity with tools like Docker,
 The pipeline is containerized using Docker. A container is created for each of the following services:
 - `producer`: Generates a stream of dynamically generated `ADT_A01` messages.  
 - `consumer`: Receives and stores the raw messages.
-- `minio` & `minio-client`: Acts as a proxy for AWS S3 storage.
+- `storage`: Uses `minio` and `minio-client` containers to act as a proxy for AWS S3 storage.
 - `transformer`: Reads and processes the raw messages.  
 - `fhir-converter`: Converts `ADT_A01` messages from HL7v2 to FHIR.  
+- `fhir-transformer`: Reads messages from the `silver` layer and stores the FHIR equivalent in the `gold` layer.  
 - `logger`: Monitors the pipeline, aggregets performance metrics, and alerts on errors.
 
 ### Producer
