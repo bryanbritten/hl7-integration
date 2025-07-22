@@ -84,7 +84,7 @@ services:
       start_period: 30s
   prometheus:
     build:
-      context: ./docker/logger/prometheus
+      context: ./docker/monitor/prometheus
     container_name: prometheus
     ports:
       - "9090:9090"
@@ -97,7 +97,7 @@ services:
       start_period: 30s
   grafana:
     build:
-      context: ./docker/logger/grafana
+      context: ./docker/monitor/grafana
     container_name: grafana
     ports:
       - "3000:3000"

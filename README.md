@@ -15,7 +15,7 @@ The pipeline is containerized using Docker. A container is created for each of t
 - `transformer`: Reads and processes the raw messages.  
 - `fhir-converter`: Converts `ADT_A01` messages from HL7v2 to FHIR.  
 - `fhir-transformer`: Reads messages from the `silver` layer and stores the FHIR equivalent in the `gold` layer.  
-- `logger`: Monitors the pipeline, aggregets performance metrics, and alerts on errors. (currently not implemented)
+- `monitor`: Monitors the pipeline and aggregates performance metrics.
 
 ### Producer
 
@@ -37,14 +37,13 @@ The `transformer` service reads from the "bronze" layer and validates the messag
 
 The conversion to FHIR is done with a containered version of the [Microsoft FHIR Converter](https://github.com/microsoft/FHIR-Converter). The image can be found [here](https://hub.docker.com/r/microsoft/healthcareapis-fhir-converter).
 
-### Logger (currently not implemented)
+### Monitor
 
-The `logger` service makes use of Grafana and Prometheous to monitor all activity in the `consumer` and `transformer` services. The following metrics are captured:
-- Number of messages that failed validation  
-- Number of messages that failed conversion to FHIR  
-- Number of messages missing required fields (TODO: Further define this)  
-
-A Warning is logged if 5% of messages fail for any reason, and an Alert is sent if 10% of messages fail for any reason, within a 2-minute window.
+The `monitor` service makes use of Grafana and Prometheous to monitor activity in the `producer`, `consumer`, `transformer`, and `fhir-transformer` services. The following metrics are captured:
+- Message send rate  
+- Message ingest rate  
+- Validation & QA Check fail rates  
+- FHIR Conversion Success Rate
 
 ### How to use
 
@@ -57,6 +56,7 @@ Running this pipeline locally requires Docker. If you have Docker installed, fol
 
 If this were a production environment, there are a few things that could/should be added to improve this pipeline, including:
 
+- Logging
 - Testing
 - Message queues
 - Kubernetes (for scaling generation and consumption services based on need)
@@ -65,3 +65,6 @@ If this were a production environment, there are a few things that could/should 
 - Business logic checks
 - More complex `ADT_A01` messages (repeated segments, z-segments, erroneous segments, etc.)
 - Validation and quality quecks on the FHIR data
+- Business-centric metrics
+- Grafana dashboard defined as code
+- Alerts and warnings defined
