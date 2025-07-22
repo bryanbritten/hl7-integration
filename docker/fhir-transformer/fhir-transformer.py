@@ -3,6 +3,7 @@ import time
 from typing import Any
 
 import requests
+from prometheus_client import Counter, start_http_server
 from s3_helpers import (
     FHIR_CONVERTER_API_VERSION,
     MINIO_DEADLETTER_BUCKET,
@@ -12,6 +13,17 @@ from s3_helpers import (
     get_message_from_s3,
     move_message_to_processed,
     write_data_to_s3,
+)
+
+messages_fhir_conversion_attempts = Counter(
+    "messages_fhir_conversion_attempts",
+    "Total number of HL7 messages sent to the FHIR Converter API.",
+    ["message_type"],
+)
+messages_fhir_conversion_successes = Counter(
+    "messages_fhir_conversion_successes",
+    "Total number of HL7 messages successfully converted to the FHIR format.",
+    ["message_type"],
 )
 
 
@@ -36,6 +48,7 @@ def main() -> None:
             time.sleep(POLL_INTERVAL)
             continue
 
+        messages_fhir_conversion_attempts.labels(message_type="ADT_A01").inc()
         fhir_data = convert_hl7_to_fhir(message=message, message_type="ADT_A01")
         if fhir_data is None:
             write_data_to_s3(
@@ -62,6 +75,7 @@ def main() -> None:
                 body=json.dumps(fhir_data).encode("utf-8"),
                 content_type="application/json",
             )
+            messages_fhir_conversion_successes.labels(message_type="ADT_A01").inc()
         move_message_to_processed(
             bucket=MINIO_SILVER_BUCKET,
             source_key=key,
@@ -70,4 +84,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    start_http_server(8000)
     main()

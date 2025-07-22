@@ -2,12 +2,19 @@ import asyncio
 from asyncio import StreamReader, StreamWriter
 from datetime import datetime, timezone
 
+from prometheus_client import Counter, start_http_server
 from s3_helpers import MINIO_BRONZE_BUCKET, write_data_to_s3
 
 START = b"\x0b"
 END = b"\x1c"
 CR = b"\x0d"
 PORT = 2575
+
+messages_received_total = Counter(
+    "messages_received_total",
+    "Total number of HL7 messages received by the Consumer service.",
+    ["message_type"],
+)
 
 
 def build_ack() -> bytes:
@@ -27,6 +34,9 @@ async def handle_client(reader: StreamReader, writer: StreamWriter) -> None:
             key=key,
             body=message,
         )
+        messages_received_total.labels(message_type="ADT_A01").inc()
+
+        # acknowledge receipt
         writer.write(build_ack())
         await writer.drain()
         writer.close()
@@ -43,4 +53,5 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
+    start_http_server(8000)
     asyncio.run(main())

@@ -3,11 +3,12 @@ import socket
 import time
 
 from hl7_generators import (
+    build_evn_segment,
     build_msh_segment,
     build_pid_segment,
     build_pv1_segment,
-    build_evn_segment,
 )
+from prometheus_client import Counter, start_http_server
 
 CONSUMER_HOST = "consumer"
 CONSUMER_PORT = 2575
@@ -15,6 +16,16 @@ CONSUMER_PORT = 2575
 START = b"\x0b"  # VT
 END = b"\x1c"  # FS
 CR = b"\x0d"  # CR
+
+messages_sent_total = Counter(
+    "messages_sent_total", "Total number of HL7 messages sent", ["message_type"]
+)
+
+messages_unsent_total = Counter(
+    "messages_unsent_total",
+    "Total number of HL7 messages that were not sent",
+    ["message_type"],
+)
 
 
 def build_adt_message() -> bytes:
@@ -48,7 +59,7 @@ def send_message(message: bytes) -> bytes | None:
             return ack
     # In a production environment, specific exceptions should be caught
     except Exception as e:
-        print(f"Error sending message: {e}")
+        # gets logged by main()
         return None
 
 
@@ -58,12 +69,13 @@ def main():
         ack = send_message(adt_message)
 
         if ack:
-            print(f"Received ACK: {ack.decode('utf-8')}")
+            messages_sent_total.labels(message_type="ADT_A01").inc()
         else:
-            print("No ACK received or an error occurred.")
+            messages_unsent_total.labels(message_type="ADT_A01").inc()
 
         time.sleep(random.uniform(1, 5))
 
 
 if __name__ == "__main__":
+    start_http_server(8000)
     main()

@@ -1,8 +1,7 @@
 import json
 import time
 
-import boto3
-from botocore.config import Config
+from prometheus_client import Counter, start_http_server
 from quality_assurance import ADTA01QualityChecker
 from s3_helpers import (
     MINIO_BRONZE_BUCKET,
@@ -14,6 +13,27 @@ from s3_helpers import (
     write_data_to_s3,
 )
 from validation import HL7Validator
+
+messages_failed_validation_total = Counter(
+    "messages_failed_validated_total",
+    "Total number of received HL7 messages that failed validation.",
+    ["message_type"],
+)
+messages_failed_quality_checks_total = Counter(
+    "messages_failed_quality_checks_total",
+    "Total number of received HL7 messages that failed data quality checks.",
+    ["message_type"],
+)
+messages_failed_parsing_total = Counter(
+    "messages_failed_parsing_total",
+    "Total number of Hl7 messages that failed to parse correctly.",
+    ["message_tyep"],
+)
+messages_passed_total = Counter(
+    "messages_passed_total",
+    "Total number of recieved HL7 messages that passed validation and all data quality checks",
+    ["message_type"],
+)
 
 
 def main() -> None:
@@ -34,13 +54,13 @@ def main() -> None:
             )
 
             if not validator.msh_segment_is_valid():
-                print(f"MSH segment is invalid in message {key}.")
+                messages_failed_validation_total.labels(message_type="ADT_A01").inc()
             elif not validator.pid_segment_is_valid():
-                print(f"PID segment is invalid in message {key}.")
+                messages_failed_validation_total.labels(message_type="ADT_A01").inc()
             elif not validator.evn_segment_is_valid():
-                print(f"EVN segment is invalid in message {key}.")
+                messages_failed_validation_total.labels(message_type="ADT_A01").inc()
             elif not validator.pv1_segment_is_valid():
-                print(f"PV1 segment is invalid in message {key}.")
+                messages_failed_validation_total.labels(message_type="ADT_A01").inc()
             elif len(issues) > 0:
                 issues_file_name = key.replace(  # type: ignore
                     "unprocessed/adt/a01/", "adt/a01/issues/"
@@ -51,15 +71,18 @@ def main() -> None:
                     body=json.dumps(issues).encode("utf-8"),
                     content_type="application/json",
                 )
-                print(f"Message {key} failed data quality checks.")
+                messages_failed_quality_checks_total.labels(
+                    message_type="ADT_A01"
+                ).inc()
             else:
-                print(f"Message {key} failed to parse.")
+                messages_failed_parsing_total.labels(message_type="ADT_A01").inc()
         else:
             write_data_to_s3(
                 bucket=MINIO_SILVER_BUCKET,
                 key=key,
                 body=message,
             )
+            messages_passed_total.labels(message_type="ADT_A01").inc()
         move_message_to_processed(
             bucket=MINIO_BRONZE_BUCKET,
             source_key=key,
@@ -68,4 +91,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    start_http_server(8000)
     main()
