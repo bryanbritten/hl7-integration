@@ -68,3 +68,6 @@ If this were a production environment, there are a few things that could/should 
 - Business-centric metrics
 - Grafana dashboard defined as code
 - Alerts and warnings defined
+
+
+![image of a Grafana dashboard with the four metrics defined above](common/img/grafana_dashboard.png)
