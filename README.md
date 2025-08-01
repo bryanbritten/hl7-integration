@@ -12,7 +12,7 @@ The pipeline is containerized using Docker. A container is created for each of t
 - `producer`: Generates a stream of dynamically generated `ADT_A01` messages.  
 - `consumer`: Receives and stores the raw messages.
 - `storage`: Uses `minio` and `minio-client` containers to act as a proxy for AWS S3 storage.
-- `transformer`: Reads and processes the raw messages.  
+- `validator`: Reads and parses raw `ADT_A01` messages, validates message structure, and performs data quality checks.  
 - `fhir-converter`: Converts `ADT_A01` messages from HL7v2 to FHIR.  
 - `fhir-transformer`: Reads messages from the `silver` layer and stores the FHIR equivalent in the `gold` layer.  
 - `monitor`: Monitors the pipeline and aggregates performance metrics.
@@ -25,9 +25,9 @@ The `faker` library is used to generate random values for names, addresses, SSNs
 
 The `ADT_A01` schema was defined with the help of definitions provided by [Caristix](https://hl7-definition.caristix.com/v2/HL7v2.5/Segments). 
 
-### Transformer
+### Validator
 
-The `transformer` service reads from the "bronze" layer and validates the messages using the `hl7apy` library in Python. It then performs a series of data quality checks using the same library. If the validation and data quality checks all pass, the raw message is saved in a "silver" layer. Otherwise, the raw message is saved in a `deadletter` bucket for manual review. 
+The `validator` service reads from the "bronze" layer and validates the messages using the `hl7apy` library in Python. It then performs a series of data quality checks using the same library. If the validation and data quality checks all pass, the raw message is saved in a "silver" layer. Otherwise, the raw message is saved in a `deadletter` bucket for manual review. 
 
 ### Storage
 
