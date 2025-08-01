@@ -68,16 +68,16 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
-  fhir-transformer:
+  transformer:
     build:
       context: .
-      dockerfile: docker/fhir-transformer/Dockerfile
-    container_name: fhir-transformer
+      dockerfile: docker/transformer/Dockerfile
+    container_name: transformer
     depends_on:
       - minio
     restart: on-failure
     healthcheck:
-      test: [ "CMD", "pgrep", "-f", "fhir-transformer.py" ]
+      test: [ "CMD", "pgrep", "-f", "transformer.py" ]
       interval: 10s
       timeout: 5s
       retries: 5

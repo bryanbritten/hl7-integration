@@ -13,8 +13,8 @@ The pipeline is containerized using Docker. A container is created for each of t
 - `consumer`: Receives and stores the raw messages.
 - `storage`: Uses `minio` and `minio-client` containers to act as a proxy for AWS S3 storage.
 - `validator`: Reads and parses raw `ADT_A01` messages, validates message structure, and performs data quality checks.  
-- `fhir-converter`: Converts `ADT_A01` messages from HL7v2 to FHIR.  
-- `fhir-transformer`: Reads messages from the `silver` layer and stores the FHIR equivalent in the `gold` layer.  
+- `fhir-converter`: A containerized version of Microsoft's [FHIR Converter](https://github.com/microsoft/FHIR-Converter).  
+- `transformer`: Converts a validated `ADT_A01` message into the FHIR format using the `fhir-converter` service.  
 - `monitor`: Monitors the pipeline and aggregates performance metrics.
 
 ### Producer
@@ -35,7 +35,11 @@ The `validator` service reads from the "bronze" layer and validates the messages
 
 ### FHIR Converter
 
-The conversion to FHIR is done with a containered version of the [Microsoft FHIR Converter](https://github.com/microsoft/FHIR-Converter). The image can be found [here](https://hub.docker.com/r/microsoft/healthcareapis-fhir-converter).
+The conversion to FHIR is done with a containerized version of the [Microsoft FHIR Converter](https://github.com/microsoft/FHIR-Converter). The image can be found [here](https://hub.docker.com/r/microsoft/healthcareapis-fhir-converter).
+
+### Transformer
+
+The `transformer` service reads a message from the "silver" layer and sends the data to the `convertToFhir` API endpoint in the `fhir-converter` service. Successful conversions are then stored in the "gold" layer, while failed conversions are stored in the `deadletter` bucket.
 
 ### Monitor
 
