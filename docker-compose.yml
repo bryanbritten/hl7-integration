@@ -43,11 +43,11 @@ services:
     depends_on:
       - minio
     restart: on-failure
-  transformer:
+  validator:
     build:
       context: .
-      dockerfile: docker/transformer/Dockerfile
-    container_name: transformer
+      dockerfile: docker/validator/Dockerfile
+    container_name: validator
     depends_on:
       - minio
     restart: on-failure
