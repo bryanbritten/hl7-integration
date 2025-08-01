@@ -3,12 +3,7 @@ import random
 import socket
 import time
 
-from hl7_generators import (
-    build_evn_segment,
-    build_msh_segment,
-    build_pid_segment,
-    build_pv1_segment,
-)
+from hl7_message_registry import MESSAGE_REGISTRY
 from prometheus_client import Counter, start_http_server
 
 logging.basicConfig(
@@ -19,10 +14,13 @@ logger = logging.getLogger(__name__)
 
 CONSUMER_HOST = "consumer"
 CONSUMER_PORT = 2575
-
 START = b"\x0b"  # VT
 END = b"\x1c"  # FS
 CR = b"\x0d"  # CR
+MESSAGE_TYPES = [
+    "ADT^A01",
+    "ADT^A03",
+]
 
 messages_sent_total = Counter(
     "messages_sent_total", "Total number of HL7 messages sent", ["message_type"]
@@ -35,19 +33,26 @@ messages_unsent_total = Counter(
 )
 
 
-def build_adt_message() -> bytes:
+def build_message(message_type: str) -> bytes | None:
     """
-    Builds a complete ADT message with MSH, PID, PV1, and EVN segments.
+    Builds a complete message with the required segments.
 
-    Returns: bytes - The complete ADT message encoded in UTF-8.
+    Returns: bytes - The message encoded in UTF-8 if the message type is supported, else `None`.
     """
 
-    msh_segment = build_msh_segment(message_type="ADT^A01")
-    pid_segment = build_pid_segment()
-    pv1_segment = build_pv1_segment()
-    evn_segment = build_evn_segment("A01")
+    schema = MESSAGE_REGISTRY.get(message_type)
+    if schema is None:
+        logger.error(f"Unsupported message type identified: {message_type}")
+        return None
 
-    return msh_segment + CR + pid_segment + CR + pv1_segment + CR + evn_segment
+    segments = []
+    for segment_info in schema["segments"]:
+        generate_segment = segment_info["generator"]
+        if segment_info["required"]:
+            segment = generate_segment()
+            segments.append(segment)
+
+    return CR.join(segments)
 
 
 def send_message(message: bytes) -> bytes | None:
@@ -78,8 +83,10 @@ def send_message(message: bytes) -> bytes | None:
 
 def main():
     while True:
-        adt_message = build_adt_message()
-        send_message(adt_message)
+        message_type = random.choice(MESSAGE_TYPES)
+        message = build_message(message_type)
+        if message:
+            send_message(message)
         time.sleep(random.uniform(1, 5))
 
 
