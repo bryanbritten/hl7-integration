@@ -52,7 +52,7 @@ services:
       - minio
     restart: on-failure
     healthcheck:
-      test: [ "CMD", "pgrep", "-f", "entrypoint.py" ]
+      test: [ "CMD", "pgrep", "-f", "validator.py" ]
       interval: 10s
       timeout: 5s
       retries: 5
