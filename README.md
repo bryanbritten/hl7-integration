@@ -56,7 +56,7 @@ Running this pipeline locally requires Docker. If you have Docker installed, fol
 
 If this were a production environment, there are a few things that could/should be added to improve this pipeline, including:
 
-- ~~Logging~~ (implemented by 54f6a9ec)
+- ~~Logging~~ (implemented by [8480be2e](https://github.com/bryanbritten/hl7-integration/commit/8480be2e0b959be5378f9510b2da116ef040fd96))
 - Testing
 - Message queues
 - Kubernetes (for scaling generation and consumption services based on need)
