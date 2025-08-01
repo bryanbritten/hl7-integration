@@ -1,3 +1,4 @@
+import logging
 import random
 import socket
 import time
@@ -9,6 +10,12 @@ from hl7_generators import (
     build_pv1_segment,
 )
 from prometheus_client import Counter, start_http_server
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 CONSUMER_HOST = "consumer"
 CONSUMER_PORT = 2575
@@ -56,23 +63,23 @@ def send_message(message: bytes) -> bytes | None:
         ) as sock:
             sock.sendall(START + message + END + CR)
             ack = sock.recv(4096)
-            return ack
+
+            if ack:
+                logger.info("Message successfully sent.")
+                messages_sent_total.labels(message_type="ADT_A01").inc()
+            else:
+                logger.error("Message filed to send.")
+                messages_unsent_total.labels(message_type="ADT_A01").inc()
     # In a production environment, specific exceptions should be caught
     except Exception as e:
-        # gets logged by main()
+        logger.exception(f"Unexpected exception: {str(e)}")
         return None
 
 
 def main():
     while True:
         adt_message = build_adt_message()
-        ack = send_message(adt_message)
-
-        if ack:
-            messages_sent_total.labels(message_type="ADT_A01").inc()
-        else:
-            messages_unsent_total.labels(message_type="ADT_A01").inc()
-
+        send_message(adt_message)
         time.sleep(random.uniform(1, 5))
 
 

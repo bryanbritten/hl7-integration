@@ -1,9 +1,16 @@
 import asyncio
+import logging
 from asyncio import StreamReader, StreamWriter
 from datetime import datetime, timezone
 
 from prometheus_client import Counter, start_http_server
 from s3_helpers import MINIO_BRONZE_BUCKET, write_data_to_s3
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 START = b"\x0b"
 END = b"\x1c"
@@ -34,6 +41,7 @@ async def handle_client(reader: StreamReader, writer: StreamWriter) -> None:
             key=key,
             body=message,
         )
+        logger.info("Message received")
         messages_received_total.labels(message_type="ADT_A01").inc()
 
         # acknowledge receipt

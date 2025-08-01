@@ -56,7 +56,7 @@ Running this pipeline locally requires Docker. If you have Docker installed, fol
 
 If this were a production environment, there are a few things that could/should be added to improve this pipeline, including:
 
-- Logging
+- ~~Logging~~ (implemented by 54f6a9ec)
 - Testing
 - Message queues
 - Kubernetes (for scaling generation and consumption services based on need)

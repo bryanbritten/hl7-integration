@@ -1,4 +1,5 @@
 import json
+import logging
 import time
 from typing import Any
 
@@ -14,6 +15,12 @@ from s3_helpers import (
     move_message_to_processed,
     write_data_to_s3,
 )
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 messages_fhir_conversion_attempts = Counter(
     "messages_fhir_conversion_attempts",
@@ -68,6 +75,7 @@ def main() -> None:
                 body=json.dumps(issue).encode("utf-8"),
                 content_type="application/json",
             )
+            logger.error("Failed to convert message to FHIR")
         else:
             write_data_to_s3(
                 bucket=MINIO_GOLD_BUCKET,
@@ -75,6 +83,7 @@ def main() -> None:
                 body=json.dumps(fhir_data).encode("utf-8"),
                 content_type="application/json",
             )
+            logger.info("Successfully converted HL7 message to FHIR")
             messages_fhir_conversion_successes.labels(message_type="ADT_A01").inc()
         move_message_to_processed(
             bucket=MINIO_SILVER_BUCKET,

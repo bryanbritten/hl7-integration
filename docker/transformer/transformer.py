@@ -1,4 +1,5 @@
 import json
+import logging
 import time
 
 from prometheus_client import Counter, start_http_server
@@ -13,6 +14,12 @@ from s3_helpers import (
     write_data_to_s3,
 )
 from validation import HL7Validator
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 messages_failed_validation_total = Counter(
     "messages_failed_validated_total",
@@ -54,12 +61,16 @@ def main() -> None:
             )
 
             if not validator.msh_segment_is_valid():
+                logger.error("Invalid MSH segment identified")
                 messages_failed_validation_total.labels(message_type="ADT_A01").inc()
             elif not validator.pid_segment_is_valid():
+                logger.error("Invalid PID segment identified")
                 messages_failed_validation_total.labels(message_type="ADT_A01").inc()
             elif not validator.evn_segment_is_valid():
+                logger.error("Invalid EVN segment identified")
                 messages_failed_validation_total.labels(message_type="ADT_A01").inc()
             elif not validator.pv1_segment_is_valid():
+                logger.error("Invalid PV1 segment identified")
                 messages_failed_validation_total.labels(message_type="ADT_A01").inc()
             elif len(issues) > 0:
                 issues_file_name = key.replace(  # type: ignore
@@ -71,10 +82,14 @@ def main() -> None:
                     body=json.dumps(issues).encode("utf-8"),
                     content_type="application/json",
                 )
+                logger.error(
+                    f"Message failed data quality checks. See {issues_file_name} for details"
+                )
                 messages_failed_quality_checks_total.labels(
                     message_type="ADT_A01"
                 ).inc()
             else:
+                logger.error("Failed to parse message.")
                 messages_failed_parsing_total.labels(message_type="ADT_A01").inc()
         else:
             write_data_to_s3(
@@ -82,6 +97,7 @@ def main() -> None:
                 key=key,
                 body=message,
             )
+            logger.info("Message successfully passed validation and quality checks")
             messages_passed_total.labels(message_type="ADT_A01").inc()
         move_message_to_processed(
             bucket=MINIO_BRONZE_BUCKET,
