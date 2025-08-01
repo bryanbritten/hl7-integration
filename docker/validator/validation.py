@@ -1,8 +1,14 @@
-import boto3
-from botocore.config import Config
+import logging
+
 from hl7apy.core import Message
 from hl7apy.exceptions import ParserError
 from hl7apy.parser import parse_message
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 
 class HL7Validator:
@@ -15,13 +21,14 @@ class HL7Validator:
         """
         Parses the raw HL7 message if valid.
 
-        Returns: hl7apy.core.Message - The parsed HL7 message.
+        Returns: hl7apy.core.Message - The parsed HL7 message if the message is valid.
+        Otherwise returns an empty message.
         """
         try:
             parsed_message = parse_message(raw_message)
             return parsed_message
         except ParserError as e:
-            print(f"Failed to parse message.")
+            logger.error(f"Failed to parse message: {str(e)}")
             return Message("ADT_A01")
 
     def has_msh_segment(self) -> bool:
