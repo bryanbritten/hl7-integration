@@ -8,4 +8,4 @@ scrape_configs:
           - 'producer:8000'
           - 'consumer:8000'
           - 'validator:8000'
-          - 'fhir-transformer:8000'
+          - 'transformer:8000'
