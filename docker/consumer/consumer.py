@@ -24,10 +24,24 @@ messages_received_total = Counter(
 )
 
 
-def build_ack() -> bytes:
-    now = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
-    ack = f"MSH|^~\\&|RECEIVER|HOSP|SENDER|SYN|{now}||ACK^A01|MSGID1234|P|2.5\rMSA|AA|MSGID1234\r"
-    return START + ack.encode("utf-8") + END + CR
+def get_msh_segment(message: bytes) -> str:
+    segments = message.split(CR)
+    return str(segments[0])
+
+
+def build_ack(
+    msh_segment: str, acknowledgement_code: str, message_control_id: str
+) -> bytes:
+    separator = msh_segment[3]
+    msa_segment = separator.join(
+        [
+            "MSA",
+            acknowledgement_code,
+            message_control_id,
+        ]
+    ).encode("utf-8")
+
+    return START + msh_segment.encode("utf-8") + CR + msa_segment + END + CR
 
 
 async def handle_client(reader: StreamReader, writer: StreamWriter) -> None:
@@ -35,28 +49,40 @@ async def handle_client(reader: StreamReader, writer: StreamWriter) -> None:
         data = await reader.readuntil(END + CR)
         message = data.strip(END + CR).strip(START)
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
-        key = f"unprocessed/adt/a01/{timestamp}.hl7"
+        logger.info("Message received")
+
+        msh_segment = get_msh_segment(message)
+        separator = msh_segment[3]
+        fields = msh_segment.split(separator)
+        message_type = fields[8]
+        message_control_id = fields[9]
+        messages_received_total.labels(message_type=message_type).inc()
+
+        key = f"unprocessed/{message_type[:3]}/{message_type[4:]}/{timestamp}.hl7"
         write_data_to_s3(
             bucket=MINIO_BRONZE_BUCKET,
             key=key,
             body=message,
         )
-        logger.info("Message received")
-        messages_received_total.labels(message_type="ADT_A01").inc()
 
-        # acknowledge receipt
-        writer.write(build_ack())
+        ack = build_ack(
+            msh_segment=msh_segment,
+            acknowledgement_code="AA",
+            message_control_id=message_control_id,
+        )
+        writer.write(ack)
         await writer.drain()
         writer.close()
     # In production, specific Exceptions should be used for known or foreseeable issues
+    # TODO: identify how to send ACK on error
     except Exception as e:
-        print(f"Error handling client: {e}")
+        logger.exception(f"Error handling client: {e}")
 
 
 async def main() -> None:
     server = await asyncio.start_server(handle_client, "0.0.0.0", PORT)
     async with server:
-        print(f"Consumer service running on port {PORT}...")
+        logger.info(f"Consumer service running on port {PORT}...")
         await server.serve_forever()
 
 

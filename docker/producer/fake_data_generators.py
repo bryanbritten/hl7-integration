@@ -76,7 +76,7 @@ def generate_patient_birth_date(min_age: int = 0, max_age: int = 100) -> str:
 def generate_patient_race() -> str:
     """
     Generates a random race for the patient according to the HL7 table 0005.
-    The race is in no way to tied to the randomly generated patient name and
+    The race is in no way tied to the randomly generated patient name and
     any biases, stereotypes, inaccuracies, or offenses are unintentional.
 
     Returns: str - An HL7v2 appropriate value based on a random value from HL7 table 0005.

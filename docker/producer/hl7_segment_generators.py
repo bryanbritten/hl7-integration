@@ -27,8 +27,7 @@ DELIMITERS = "^~\\&"
 
 def generate_msh_segment(message_type: str) -> bytes:
     """
-    Generates an MSH segment for HL7 messages. Faker is used to generate a random
-    date and time as well as a random UUID for the message control ID.
+    Generates an MSH segment for HL7 messages.
 
     message_type: str - The type of HL7 message (e.g., "ADT^A01").
     Returns: bytes - The MSH segment encoded in UTF-8.
@@ -70,7 +69,6 @@ def generate_pid_segment() -> bytes:
     """
     Generates a PID segment for HL7 messages.
 
-    separator: str - The field separator to use in the PID segment.
     Returns: bytes - The PID segment encoded in UTF-8.
     """
 
@@ -145,7 +143,7 @@ def generate_pv1_segment(set_id: int = 1) -> bytes:
     """
 
     pv1_0 = "PV1"
-    pv1_1 = str(set_id)
+    pv1_1 = str(set_id).zfill(4)
     pv1_2 = generate_patient_class()
     pv1_3 = ""
     pv1_4 = generate_admission_type()

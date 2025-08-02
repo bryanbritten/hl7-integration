@@ -48,6 +48,12 @@ def build_message(message_type: str) -> bytes | None:
     segments = []
     for segment_info in schema["segments"]:
         generate_segment = segment_info["generator"]
+
+        if generate_segment is None:
+            logger.error(
+                f"Generator function not defined for required segment: {segment_info['identifier']}"
+            )
+
         if segment_info["required"]:
             segment = generate_segment()
             segments.append(segment)
