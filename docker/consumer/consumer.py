@@ -3,8 +3,9 @@ import logging
 from asyncio import StreamReader, StreamWriter
 from datetime import datetime, timezone
 
+from hl7_helpers import get_msh_segment
 from prometheus_client import Counter, start_http_server
-from s3_helpers import MINIO_BRONZE_BUCKET, write_data_to_s3
+from s3_helpers import MINIO_BRONZE_BUCKET, MINIO_DEADLETTER_BUCKET, write_data_to_s3
 
 logging.basicConfig(
     level=logging.INFO,
@@ -24,15 +25,12 @@ messages_received_total = Counter(
 )
 
 
-def get_msh_segment(message: bytes) -> str:
-    segments = message.split(CR)
-    return str(segments[0])
-
-
 def build_ack(
-    msh_segment: str, acknowledgement_code: str, message_control_id: str
+    msh_segment: str,
+    separator: str,
+    acknowledgement_code: str,
+    message_control_id: str,
 ) -> bytes:
-    separator = msh_segment[3]
     msa_segment = separator.join(
         [
             "MSA",
@@ -45,6 +43,12 @@ def build_ack(
 
 
 async def handle_client(reader: StreamReader, writer: StreamWriter) -> None:
+    # instantiate variables to be used in exception handling
+    timestamp = None
+    message = None
+    msh_segment = None
+    message_control_id = None
+
     try:
         data = await reader.readuntil(END + CR)
         message = data.strip(END + CR).strip(START)
@@ -52,13 +56,13 @@ async def handle_client(reader: StreamReader, writer: StreamWriter) -> None:
         logger.info("Message received")
 
         msh_segment = get_msh_segment(message)
-        separator = msh_segment[3]
-        fields = msh_segment.split(separator)
-        message_type = fields[8]
-        message_control_id = fields[9]
+        separator = msh_segment.msh_1.to_er7()
+        message_type = msh_segment.msh_9.msh_9_1.to_er7()
+        trigger_event = msh_segment.msh_9.msh_9_2.to_er7()
+        message_control_id = msh_segment.msh_10.to_er7()
         messages_received_total.labels(message_type=message_type).inc()
 
-        key = f"unprocessed/{message_type[:3]}/{message_type[4:]}/{timestamp}.hl7"
+        key = f"unprocessed/{message_type}/{trigger_event}/{timestamp}.hl7"
         write_data_to_s3(
             bucket=MINIO_BRONZE_BUCKET,
             key=key,
@@ -66,7 +70,8 @@ async def handle_client(reader: StreamReader, writer: StreamWriter) -> None:
         )
 
         ack = build_ack(
-            msh_segment=msh_segment,
+            msh_segment=msh_segment.to_er7(),
+            separator=separator,
             acknowledgement_code="AA",
             message_control_id=message_control_id,
         )
@@ -74,9 +79,33 @@ async def handle_client(reader: StreamReader, writer: StreamWriter) -> None:
         await writer.drain()
         writer.close()
     # In production, specific Exceptions should be used for known or foreseeable issues
-    # TODO: identify how to send ACK on error
     except Exception as e:
-        logger.exception(f"Error handling client: {e}")
+        # if there is no message then there was an error receiving the message; no need for ACK
+        if message is None:
+            logger.exception(f"Failed to ingest message: {str(e)}")
+        # if the message_control_id is None then the message either failed to parse
+        # or had a malformed MSH header. Either way, no way to automatically send ACK.
+        elif message_control_id is None:
+            if timestamp is None:
+                timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
+            write_data_to_s3(
+                bucket=MINIO_DEADLETTER_BUCKET,
+                key=f"unparsed/{timestamp}.hl7",
+                body=message,
+            )
+        elif msh_segment is not None:
+            logger.exception(f"Error handling client: {str(e)}")
+            ack = build_ack(
+                msh_segment=msh_segment.to_er7(),
+                separator=msh_segment.msh_1.to_er7(),
+                acknowledgement_code="AE",
+                message_control_id=message_control_id,
+            )
+            writer.write(ack)
+            await writer.drain()
+            writer.close()
+        else:
+            logger.exception(f"Unexpected error: {str(e)}")
 
 
 async def main() -> None:
