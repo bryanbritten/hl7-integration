@@ -1,7 +1,6 @@
 from hl7apy.core import Segment
 from hl7apy.parser import parse_message, parse_segment
 
-# if a segment's identifier is None then the segment is a segment group.
 MESSAGE_REGISTRY = {
     "ADT_A01": {
         "segments": [
@@ -79,7 +78,7 @@ MESSAGE_REGISTRY = {
             },
             {
                 "name": "Procedure",
-                "identifier": None,
+                "identifier": "ADT_A01_PROCEDURE",
                 "required": False,
                 "repeatable": True,
                 "segments": [
@@ -105,7 +104,7 @@ MESSAGE_REGISTRY = {
             },
             {
                 "name": "Insurance",
-                "identifier": None,
+                "identifier": "ADT_A01_INSURANCE",
                 "required": False,
                 "repeatable": True,
                 "segments": [
@@ -207,7 +206,7 @@ MESSAGE_REGISTRY = {
             },
             {
                 "name": "Procedure",
-                "identifier": None,
+                "identifier": "ADT_A03_PROCEDURE",
                 "required": False,
                 "repeatable": True,
                 "segments": [
