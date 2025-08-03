@@ -3,7 +3,7 @@ import random
 import socket
 import time
 
-from hl7_message_registry import MESSAGE_REGISTRY
+from hl7_helpers import MESSAGE_REGISTRY
 from prometheus_client import Counter, start_http_server
 
 logging.basicConfig(
