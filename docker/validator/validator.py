@@ -74,23 +74,21 @@ def main() -> None:
                 key=deadletter_key,
                 body=message,
             )
+            messages_failed_validation_total.labels(
+                message_type=message_structure
+            ).inc()
 
             if not validator.has_required_segments():
                 logger.error(f"Message does not contain required segments: {key}")
-                messages_failed_validation_total.labels(
-                    message_type=message_structure
-                ).inc()
             elif not validator.all_segments_are_valid():
                 logger.error(f"Message contains invalid segment(s): {key}")
-                messages_failed_validation_total.labels(
-                    message_type=message_structure
-                ).inc()
             elif not validator.segment_cardinality_is_valid():
                 logger.error(f"Message contains invalid repeated segments: {key}")
-                messages_failed_validation_total.labels(
-                    message_type=message_structure
-                ).inc()
         elif len(issues) > 0:
+            deadletter_key = key.replace(
+                f"unprocessed/{message_type}/{trigger_event}",
+                f"{message_type}/{trigger_event}/messages/",
+            )
             issues_key = key.replace(
                 f"unprocessed/{message_type}/{trigger_event}",
                 f"{message_type}/{trigger_event}/issues",
@@ -104,6 +102,11 @@ def main() -> None:
                 message_type=message_structure
             ).inc()
 
+            write_data_to_s3(
+                bucket=MINIO_DEADLETTER_BUCKET,
+                key=deadletter_key,
+                body=message,
+            )
             write_data_to_s3(
                 bucket=MINIO_DEADLETTER_BUCKET,
                 key=issues_key,
