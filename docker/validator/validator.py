@@ -48,6 +48,9 @@ def main() -> None:
     while True:
         key, message = get_message_from_s3(MINIO_BRONZE_BUCKET)
         if not message:
+            logger.info(
+                f"Failed to find new messages. Checking again in {POLL_INTERVAL} seconds."
+            )
             time.sleep(POLL_INTERVAL)
             continue
 
