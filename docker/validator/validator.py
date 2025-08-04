@@ -1,6 +1,7 @@
 import json
 import logging
 import time
+from typing import Any
 
 from prometheus_client import Counter, start_http_server
 from quality_assurance import ADTA01QualityChecker
@@ -47,50 +48,71 @@ def main() -> None:
     while True:
         key, message = get_message_from_s3(MINIO_BRONZE_BUCKET)
         if not message:
+            logger.info(
+                f"Failed to find new messages. Checking again in {POLL_INTERVAL} seconds."
+            )
             time.sleep(POLL_INTERVAL)
             continue
 
         validator = HL7Validator(message)
         checker = ADTA01QualityChecker(validator.parsed_message)
         issues = checker.run_all_checks()
-        if not validator.message_is_valid() or len(issues) > 0:
+
+        message_type = validator.parsed_message.msh.msh_9.msh_9_1.to_er7() or "UNK"
+        trigger_event = validator.parsed_message.msh.msh_9.msh_9_2.to_er7() or "UNK"
+        message_structure = (
+            validator.parsed_message.msh.msh_9.msh_9_3.to_er7() or "UNK_UNK"
+        )
+
+        if not validator.message_is_valid():
+            deadletter_key = key.replace(
+                f"unprocessed/{message_type}/{trigger_event}",
+                f"{message_type}/{trigger_event}/messages",
+            )
             write_data_to_s3(
                 bucket=MINIO_DEADLETTER_BUCKET,
-                key=key.replace("unprocessed/adt/a01/", "adt/a01/messages/"),  # type: ignore
+                key=deadletter_key,
                 body=message,
             )
+            messages_failed_validation_total.labels(
+                message_type=message_structure
+            ).inc()
 
-            if not validator.msh_segment_is_valid():
-                logger.error("Invalid MSH segment identified")
-                messages_failed_validation_total.labels(message_type="ADT_A01").inc()
-            elif not validator.pid_segment_is_valid():
-                logger.error("Invalid PID segment identified")
-                messages_failed_validation_total.labels(message_type="ADT_A01").inc()
-            elif not validator.evn_segment_is_valid():
-                logger.error("Invalid EVN segment identified")
-                messages_failed_validation_total.labels(message_type="ADT_A01").inc()
-            elif not validator.pv1_segment_is_valid():
-                logger.error("Invalid PV1 segment identified")
-                messages_failed_validation_total.labels(message_type="ADT_A01").inc()
-            elif len(issues) > 0:
-                issues_file_name = key.replace(  # type: ignore
-                    "unprocessed/adt/a01/", "adt/a01/issues/"
-                ).replace(".hl7", "-issues.json")
-                write_data_to_s3(
-                    bucket=MINIO_DEADLETTER_BUCKET,
-                    key=issues_file_name,
-                    body=json.dumps(issues).encode("utf-8"),
-                    content_type="application/json",
-                )
-                logger.error(
-                    f"Message failed data quality checks. See {issues_file_name} for details"
-                )
-                messages_failed_quality_checks_total.labels(
-                    message_type="ADT_A01"
-                ).inc()
-            else:
-                logger.error("Failed to parse message.")
-                messages_failed_parsing_total.labels(message_type="ADT_A01").inc()
+            if not validator.has_required_segments():
+                logger.error(f"Message does not contain required segments: {key}")
+            elif not validator.all_segments_are_valid():
+                logger.error(f"Message contains invalid segment(s): {key}")
+            elif not validator.segment_cardinality_is_valid():
+                logger.error(f"Message contains invalid repeated segments: {key}")
+        elif len(issues) > 0:
+            deadletter_key = key.replace(
+                f"unprocessed/{message_type}/{trigger_event}",
+                f"{message_type}/{trigger_event}/messages",
+            )
+            issues_key = key.replace(
+                f"unprocessed/{message_type}/{trigger_event}",
+                f"{message_type}/{trigger_event}/issues",
+            ).replace(".hl7", "-issues.json")
+
+            logger.error(
+                f"Message failed data quality checks. See {issues_key} for details"
+            )
+
+            messages_failed_quality_checks_total.labels(
+                message_type=message_structure
+            ).inc()
+
+            write_data_to_s3(
+                bucket=MINIO_DEADLETTER_BUCKET,
+                key=deadletter_key,
+                body=message,
+            )
+            write_data_to_s3(
+                bucket=MINIO_DEADLETTER_BUCKET,
+                key=issues_key,
+                body=json.dumps(issues).encode("utf-8"),
+                content_type="application/json",
+            )
         else:
             write_data_to_s3(
                 bucket=MINIO_SILVER_BUCKET,
@@ -98,7 +120,9 @@ def main() -> None:
                 body=message,
             )
             logger.info("Message successfully passed validation and quality checks")
-            messages_passed_total.labels(message_type="ADT_A01").inc()
+            messages_passed_total.labels(message_type=message_structure).inc()
+
+        # regardless of outcome, move the message into the processed directory in the Bronze bucket
         move_message_to_processed(
             bucket=MINIO_BRONZE_BUCKET,
             source_key=key,

@@ -140,21 +140,12 @@ class ADTA01QualityChecker:
 
     def check_message_header_info(self) -> None:
         msg = self.message
-        message_type = msg.msh.message_type.to_er7() if msg.msh.message_type else ""
         sending_fac = (
             msg.msh.sending_facility.to_er7() if msg.msh.sending_facility else ""
         )
         receiving_fac = (
             msg.msh.receiving_facility.to_er7() if msg.msh.receiving_facility else ""
         )
-
-        if message_type != "ADT^A01":
-            issue = {
-                "type": "header",
-                "severity": 5,
-                "message": "Unexpected message type in MSH-9. Expected ADT^A01.",
-            }
-            self.issues.append(issue)
 
         if not sending_fac or ADTA01QualityChecker.is_placeholder(sending_fac):
             issue = {

@@ -3,12 +3,8 @@ import random
 import socket
 import time
 
-from hl7_generators import (
-    build_evn_segment,
-    build_msh_segment,
-    build_pid_segment,
-    build_pv1_segment,
-)
+from hl7_helpers import MESSAGE_REGISTRY
+from hl7_segment_generators import generate_segment
 from prometheus_client import Counter, start_http_server
 
 logging.basicConfig(
@@ -19,10 +15,13 @@ logger = logging.getLogger(__name__)
 
 CONSUMER_HOST = "consumer"
 CONSUMER_PORT = 2575
-
 START = b"\x0b"  # VT
 END = b"\x1c"  # FS
 CR = b"\x0d"  # CR
+MESSAGE_TYPES = [
+    "ADT_A01",
+    "ADT_A03",
+]
 
 messages_sent_total = Counter(
     "messages_sent_total", "Total number of HL7 messages sent", ["message_type"]
@@ -35,22 +34,38 @@ messages_unsent_total = Counter(
 )
 
 
-def build_adt_message() -> bytes:
+def build_message(message_type: str) -> bytes | None:
     """
-    Builds a complete ADT message with MSH, PID, PV1, and EVN segments.
+    Builds a complete message with the required segments.
 
-    Returns: bytes - The complete ADT message encoded in UTF-8.
+    Returns: bytes - The message encoded in UTF-8 if the message type is supported, else `None`.
     """
 
-    msh_segment = build_msh_segment(message_type="ADT^A01")
-    pid_segment = build_pid_segment()
-    pv1_segment = build_pv1_segment()
-    evn_segment = build_evn_segment("A01")
+    schema = MESSAGE_REGISTRY.get(message_type)
+    if schema is None:
+        logger.error(f"Unsupported message type identified: {message_type}")
+        return None
 
-    return msh_segment + CR + pid_segment + CR + pv1_segment + CR + evn_segment
+    message_structure = message_type
+    message_type, trigger_event = message_type.split("_")
+
+    segments = []
+    for segment_info in schema["segments"]:
+        # for simplicity, ignore segment groups
+        if segment_info.get("segments") is not None:
+            continue
+
+        if segment_info["required"] or random.random() <= 0.5:
+            segment_type = segment_info["identifier"]
+            segment = generate_segment(
+                segment_type, message_type, trigger_event, message_structure
+            )
+            segments.append(segment)
+
+    return CR.join(segments)
 
 
-def send_message(message: bytes) -> bytes | None:
+def send_message(message: bytes, message_type: str) -> bytes | None:
     """
     Sends the HL7 message to the consumer service.
 
@@ -66,10 +81,10 @@ def send_message(message: bytes) -> bytes | None:
 
             if ack:
                 logger.info("Message successfully sent.")
-                messages_sent_total.labels(message_type="ADT_A01").inc()
+                messages_sent_total.labels(message_type=message_type).inc()
             else:
                 logger.error("Message filed to send.")
-                messages_unsent_total.labels(message_type="ADT_A01").inc()
+                messages_unsent_total.labels(message_type=message_type).inc()
     # In a production environment, specific exceptions should be caught
     except Exception as e:
         logger.exception(f"Unexpected exception: {str(e)}")
@@ -78,8 +93,12 @@ def send_message(message: bytes) -> bytes | None:
 
 def main():
     while True:
-        adt_message = build_adt_message()
-        send_message(adt_message)
+        message_type = random.choice(MESSAGE_TYPES)
+        message = build_message(message_type)
+        if message:
+            send_message(message, message_type)
+        else:
+            logger.error(f"Failed to build message of message type {message_type}")
         time.sleep(random.uniform(1, 5))
 
 
