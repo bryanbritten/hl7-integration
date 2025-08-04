@@ -18,6 +18,8 @@ services:
       context: .
       dockerfile: docker/consumer/Dockerfile
     container_name: consumer
+    depends_on:
+      - minio
     ports:
       - "2575:2575"
     restart: on-failure
@@ -76,6 +78,7 @@ services:
     container_name: transformer
     depends_on:
       - minio
+      - fhir-converter
     restart: on-failure
     healthcheck:
       test: [ "CMD", "pgrep", "-f", "transformer.py" ]
