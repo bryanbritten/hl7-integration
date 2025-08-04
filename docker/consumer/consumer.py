@@ -65,7 +65,7 @@ async def handle_client(reader: StreamReader, writer: StreamWriter) -> None:
         logger.info("Message received")
 
         try:
-            msh_segment = get_msh_segment(message.decode("utf-8"))
+            msh_segment = get_msh_segment(message)
             separator = msh_segment.msh_1.to_er7()
             message_type = msh_segment.msh_9.msh_9_1.to_er7()
             trigger_event = msh_segment.msh_9.msh_9_2.to_er7()

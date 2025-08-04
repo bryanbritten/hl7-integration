@@ -236,5 +236,5 @@ MESSAGE_REGISTRY = {
 
 
 def get_msh_segment(message: bytes) -> Segment:
-    msg = parse_message(message)
+    msg = parse_message(message.decode("utf-8"))
     return parse_segment(msg.msh.to_er7())
