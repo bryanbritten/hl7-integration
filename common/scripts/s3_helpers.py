@@ -33,7 +33,7 @@ def get_message_from_s3(bucket: str) -> tuple[str, bytes] | tuple[None, None]:
     Returns: bytes - The raw HL7 message retrieved from S3.
     """
     try:
-        response = s3.list_objects_v2(Bucket=bucket, Prefix="unprocessed/adt/a01/")
+        response = s3.list_objects_v2(Bucket=bucket, Prefix="unprocessed/")
         if "Contents" not in response:
             return None, None
 
