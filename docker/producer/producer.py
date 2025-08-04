@@ -19,8 +19,8 @@ START = b"\x0b"  # VT
 END = b"\x1c"  # FS
 CR = b"\x0d"  # CR
 MESSAGE_TYPES = [
-    "ADT^A01",
-    "ADT^A03",
+    "ADT_A01",
+    "ADT_A03",
 ]
 
 messages_sent_total = Counter(
