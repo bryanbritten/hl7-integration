@@ -1,3 +1,4 @@
+import logging
 import random
 
 from fake_data_generators import (
@@ -18,6 +19,12 @@ from fake_data_generators import (
     generate_random_date_time,
 )
 from faker import Faker
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 faker = Faker()
 
@@ -119,7 +126,7 @@ def generate_pid_segment() -> bytes:
     ).encode("utf-8")
 
 
-def generate_evn_segment(trigger_event: str = "A01") -> bytes:
+def generate_evn_segment(trigger_event: str) -> bytes:
     """
     Generates an EVN segment for HL7 messages.
 
@@ -134,7 +141,7 @@ def generate_evn_segment(trigger_event: str = "A01") -> bytes:
     return SEPARATOR.join([evn_0, evn_1, evn_2]).encode("utf-8")
 
 
-def generate_pv1_segment(set_id: int = 1) -> bytes:
+def generate_pv1_segment() -> bytes:
     """
     Generates a PV1 segment for HL7 messages.
 
@@ -143,7 +150,7 @@ def generate_pv1_segment(set_id: int = 1) -> bytes:
     """
 
     pv1_0 = "PV1"
-    pv1_1 = str(set_id).zfill(4)
+    pv1_1 = "0001"
     pv1_2 = generate_patient_class()
     pv1_3 = ""
     pv1_4 = generate_admission_type()
@@ -189,3 +196,24 @@ def generate_pv1_segment(set_id: int = 1) -> bytes:
             pv1_45,
         ]
     ).encode("utf-8")
+
+
+def generate_segment(
+    segment_type: str, message_type: str, trigger_event: str, message_structure: str
+) -> bytes:
+    match segment_type:
+        case "MSH":
+            component_sep = DELIMITERS[0]
+            message_type = component_sep.join(
+                [message_type, trigger_event, message_structure]
+            )
+            return generate_msh_segment(message_type)
+        case "EVN":
+            return generate_evn_segment(trigger_event)
+        case "PID":
+            return generate_pid_segment()
+        case "PV1":
+            return generate_pv1_segment()
+        case _:
+            logger.warning(f"No generator defined for segment of type {segment_type}")
+            return b""

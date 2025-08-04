@@ -1,7 +1,8 @@
 services:
   producer:
     build:
-      context: ./docker/producer
+      context: .
+      dockerfile: docker/producer/Dockerfile
     container_name: producer
     depends_on:
       - consumer

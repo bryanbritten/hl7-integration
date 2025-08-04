@@ -4,6 +4,7 @@ import socket
 import time
 
 from hl7_helpers import MESSAGE_REGISTRY
+from hl7_segment_generators import generate_segment
 from prometheus_client import Counter, start_http_server
 
 logging.basicConfig(
@@ -45,23 +46,26 @@ def build_message(message_type: str) -> bytes | None:
         logger.error(f"Unsupported message type identified: {message_type}")
         return None
 
+    message_structure = message_type
+    message_type, trigger_event = message_type.split("_")
+
     segments = []
     for segment_info in schema["segments"]:
-        generate_segment = segment_info["generator"]
+        # for simplicity, ignore segment groups
+        if segment_info.get("segments") is not None:
+            continue
 
-        if generate_segment is None:
-            logger.error(
-                f"Generator function not defined for required segment: {segment_info['identifier']}"
+        if segment_info["required"] or random.random() <= 0.5:
+            segment_type = segment_info["identifier"]
+            segment = generate_segment(
+                segment_type, message_type, trigger_event, message_structure
             )
-
-        if segment_info["required"]:
-            segment = generate_segment()
             segments.append(segment)
 
     return CR.join(segments)
 
 
-def send_message(message: bytes) -> bytes | None:
+def send_message(message: bytes, message_type: str) -> bytes | None:
     """
     Sends the HL7 message to the consumer service.
 
@@ -77,10 +81,10 @@ def send_message(message: bytes) -> bytes | None:
 
             if ack:
                 logger.info("Message successfully sent.")
-                messages_sent_total.labels(message_type="ADT_A01").inc()
+                messages_sent_total.labels(message_type=message_type).inc()
             else:
                 logger.error("Message filed to send.")
-                messages_unsent_total.labels(message_type="ADT_A01").inc()
+                messages_unsent_total.labels(message_type=message_type).inc()
     # In a production environment, specific exceptions should be caught
     except Exception as e:
         logger.exception(f"Unexpected exception: {str(e)}")
@@ -92,7 +96,9 @@ def main():
         message_type = random.choice(MESSAGE_TYPES)
         message = build_message(message_type)
         if message:
-            send_message(message)
+            send_message(message, message_type)
+        else:
+            logger.error(f"Failed to build message of message type {message_type}")
         time.sleep(random.uniform(1, 5))
 
 
