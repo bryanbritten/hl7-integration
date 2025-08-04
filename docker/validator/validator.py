@@ -67,7 +67,7 @@ def main() -> None:
         if not validator.message_is_valid():
             deadletter_key = key.replace(
                 f"unprocessed/{message_type}/{trigger_event}",
-                f"{message_type}/{trigger_event}/messages/",
+                f"{message_type}/{trigger_event}/messages",
             )
             write_data_to_s3(
                 bucket=MINIO_DEADLETTER_BUCKET,
@@ -87,7 +87,7 @@ def main() -> None:
         elif len(issues) > 0:
             deadletter_key = key.replace(
                 f"unprocessed/{message_type}/{trigger_event}",
-                f"{message_type}/{trigger_event}/messages/",
+                f"{message_type}/{trigger_event}/messages",
             )
             issues_key = key.replace(
                 f"unprocessed/{message_type}/{trigger_event}",
