@@ -1,235 +1,87 @@
 from hl7apy.core import Segment
 from hl7apy.parser import parse_message, parse_segment
 
+
+def segment(
+    identifier: str,
+    name: str,
+    required: bool = False,
+    repeatable: bool = False,
+) -> dict[str, str | bool]:
+    return {
+        "identifier": identifier,
+        "name": name,
+        "required": required,
+        "repeatable": repeatable,
+    }
+
+
 MESSAGE_REGISTRY = {
     "ADT_A01": {
         "segments": [
-            {
-                "name": "Message Segment Header",
-                "identifier": "MSH",
-                "required": True,
-                "repeatable": False,
-            },
-            {
-                "name": "Event Type",
-                "identifier": "EVN",
-                "required": True,
-                "repeatable": False,
-            },
-            {
-                "name": "Patient Identifier",
-                "identifier": "PID",
-                "required": True,
-                "repeatable": False,
-            },
-            {
-                "name": "Patient Demographic",
-                "identifier": "PD1",
-                "required": False,
-                "repeatable": False,
-            },
-            {
-                "name": "Next of Kin",
-                "identifier": "NK1",
-                "required": False,
-                "repeatable": True,
-            },
-            {
-                "name": "Patient Visit",
-                "identifier": "PV1",
-                "required": True,
-                "repeatable": False,
-            },
-            {
-                "name": "Patient Visit - Additional Information",
-                "identifier": "PV2",
-                "required": False,
-                "repeatable": False,
-            },
-            {
-                "name": "Disability Segment",
-                "identifier": "DB1",
-                "required": False,
-                "repeatable": True,
-            },
-            {
-                "name": "Observation Segment",
-                "identifier": "OBX",
-                "required": False,
-                "repeatable": True,
-            },
-            {
-                "name": "Patient Allergy Information",
-                "identifier": "AL1",
-                "required": False,
-                "repeatable": True,
-            },
-            {
-                "name": "Diagnosis",
-                "identifier": "DG1",
-                "required": False,
-                "repeatable": True,
-            },
-            {
-                "name": "Diagnosis Related Group",
-                "identifier": "DRG",
-                "required": False,
-                "repeatable": False,
-            },
+            segment("MSH", "Message Segment Header", required=True),
+            segment("EVN", "Event Type", required=True),
+            segment("PID", "Patient Identifier", required=True),
+            segment("PD1", "Patient Demographic"),
+            segment("NK1", "Next of Kin", repeatable=True),
+            segment("PV1", "Patient Visit", required=True),
+            segment("PV2", "Patient Visit - Additional Information"),
+            segment("DB1", "Disability Segment", repeatable=True),
+            segment("OBX", "Observation Segment", repeatable=True),
+            segment("AL1", "Patient Allergy Information", repeatable=True),
+            segment("DG1", "Diagnosis", repeatable=True),
+            segment("DRG", "Diagnosis Related Group"),
             {
                 "name": "Procedure",
                 "identifier": "ADT_A01_PROCEDURE",
                 "required": False,
                 "repeatable": True,
                 "segments": [
-                    {
-                        "name": "Procedures",
-                        "identifier": "PR1",
-                        "required": True,
-                        "repeatable": False,
-                    },
-                    {
-                        "name": "Role",
-                        "identifier": "ROL",
-                        "required": False,
-                        "repeatable": True,
-                    },
+                    segment("PR1", "Procedures", required=True),
+                    segment("ROL", "Role", repeatable=True),
                 ],
             },
-            {
-                "name": "Guarantor",
-                "identifier": "GT1",
-                "required": False,
-                "repeatable": True,
-            },
+            segment("GT1", "Guarantor", repeatable=True),
             {
                 "name": "Insurance",
                 "identifier": "ADT_A01_INSURANCE",
                 "required": False,
                 "repeatable": True,
                 "segments": [
-                    {
-                        "name": "Insurance",
-                        "identifier": "IN1",
-                        "required": True,
-                        "repeatable": False,
-                    },
-                    {
-                        "name": "Insurance - Additional Information",
-                        "identifier": "IN2",
-                        "required": False,
-                        "repeatable": False,
-                    },
-                    {
-                        "name": "Insurance - Additional Information - Certification",
-                        "identifier": "IN3",
-                        "required": False,
-                        "repeatable": False,
-                    },
+                    segment("IN1", "Insurance", required=True),
+                    segment("IN2", "Insurance - Additional Information"),
+                    segment(
+                        "IN3", "Insurance - Additional Information - Certification"
+                    ),
                 ],
             },
-            {
-                "name": "Accident",
-                "identifier": "ACC",
-                "required": False,
-                "repeatable": False,
-            },
-            {
-                "name": "UB82 Data",
-                "identifier": "UB1",
-                "required": False,
-                "repeatable": False,
-            },
-            {
-                "name": "UB92 Data",
-                "identifier": "UB2",
-                "required": False,
-                "repeatable": False,
-            },
+            segment("ACC", "Accident"),
+            segment("UB1", "UB82 Data"),
+            segment("UB2", "UB92 Data"),
         ]
     },
     "ADT_A03": {
         "segments": [
-            {
-                "name": "Message Segment Header",
-                "identifier": "MSH",
-                "required": True,
-                "repeatable": False,
-            },
-            {
-                "name": "Event Type",
-                "identifier": "EVN",
-                "required": True,
-                "repeatable": False,
-            },
-            {
-                "name": "Patient Identification",
-                "identifier": "PID",
-                "required": True,
-                "repeatable": False,
-            },
-            {
-                "name": "Patient Demographic",
-                "identifier": "PD1",
-                "required": False,
-                "repeatable": False,
-            },
-            {
-                "name": "Patient Visit",
-                "identifier": "PV1",
-                "required": True,
-                "repeatable": False,
-            },
-            {
-                "name": "Patient Visit - Additional Information",
-                "identifier": "PV2",
-                "required": False,
-                "repeatable": False,
-            },
-            {
-                "name": "Disability Segment",
-                "identifier": "DB1",
-                "required": False,
-                "repeatable": True,
-            },
-            {
-                "name": "Diagnosis",
-                "identifier": "DG1",
-                "required": False,
-                "repeatable": True,
-            },
-            {
-                "name": "Diagnosis Related Group",
-                "identifier": "DRG",
-                "required": False,
-                "repeatable": False,
-            },
+            segment("MSH", "Message Segment Header", required=True),
+            segment("EVN", "Event Type", required=True),
+            segment("PID", "Patient Identifier", required=True),
+            segment("PD1", "Patient Demographic"),
+            segment("PV1", "Patient Visit", required=True),
+            segment("PV2", "Patient Visit - Additional Information"),
+            segment("DB1", "Disability Segment", repeatable=True),
+            segment("DG1", "Diagnosis", repeatable=True),
+            segment("DRG", "Diagnosis Related Group"),
             {
                 "name": "Procedure",
                 "identifier": "ADT_A03_PROCEDURE",
                 "required": False,
                 "repeatable": True,
                 "segments": [
-                    {
-                        "name": "Procedures",
-                        "identifier": "PR1",
-                        "required": True,
-                        "repeatable": False,
-                    },
-                    {
-                        "name": "Role",
-                        "identifier": "ROL",
-                        "required": False,
-                        "repeatable": True,
-                    },
+                    segment("PR1", "Procedures", required=True),
+                    segment("ROL", "Role", repeatable=True),
                 ],
             },
-            {
-                "name": "Observation Segment",
-                "identifier": "OBX",
-                "required": False,
-                "repeatable": True,
-            },
+            segment("OBX", "Observation Segment", repeatable=True),
         ],
     },
 }
