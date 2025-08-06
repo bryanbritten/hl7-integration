@@ -5,7 +5,10 @@ from datetime import datetime, timezone
 
 from hl7_helpers import get_msh_segment
 from hl7apy.exceptions import ParserError
-from prometheus_client import Counter, start_http_server
+from metrics import (
+    messages_received_total,
+)
+from prometheus_client import start_http_server
 from s3_helpers import MINIO_BRONZE_BUCKET, MINIO_DEADLETTER_BUCKET, write_data_to_s3
 
 logging.basicConfig(
@@ -18,12 +21,6 @@ START = b"\x0b"
 END = b"\x1c"
 CR = b"\x0d"
 PORT = 2575
-
-messages_received_total = Counter(
-    "messages_received_total",
-    "Total number of HL7 messages received by the Consumer service.",
-    ["message_type"],
-)
 
 
 def build_ack(
@@ -82,7 +79,9 @@ async def handle_client(reader: StreamReader, writer: StreamWriter) -> None:
         if not isinstance(msh_segment, str):
             msh_segment = msh_segment.to_er7()
 
-        messages_received_total.labels(message_type=message_type).inc()
+        messages_received_total.labels(
+            message_type=f"{message_type}_{trigger_event}"
+        ).inc()
 
         key = f"unprocessed/{message_type}/{trigger_event}/{timestamp}.hl7"
         write_data_to_s3(

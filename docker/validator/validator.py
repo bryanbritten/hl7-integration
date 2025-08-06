@@ -3,7 +3,13 @@ import logging
 import time
 from typing import Any
 
-from prometheus_client import Counter, start_http_server
+from metrics import (
+    messages_failed_parsing_total,
+    messages_failed_quality_checks_total,
+    messages_failed_validation_total,
+    messages_passed_total,
+)
+from prometheus_client import start_http_server
 from quality_assurance import ADTA01QualityChecker
 from s3_helpers import (
     MINIO_BRONZE_BUCKET,
@@ -21,27 +27,6 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s: %(message)s",
 )
 logger = logging.getLogger(__name__)
-
-messages_failed_validation_total = Counter(
-    "messages_failed_validated_total",
-    "Total number of received HL7 messages that failed validation.",
-    ["message_type"],
-)
-messages_failed_quality_checks_total = Counter(
-    "messages_failed_quality_checks_total",
-    "Total number of received HL7 messages that failed data quality checks.",
-    ["message_type"],
-)
-messages_failed_parsing_total = Counter(
-    "messages_failed_parsing_total",
-    "Total number of Hl7 messages that failed to parse correctly.",
-    ["message_tyep"],
-)
-messages_passed_total = Counter(
-    "messages_passed_total",
-    "Total number of recieved HL7 messages that passed validation and all data quality checks",
-    ["message_type"],
-)
 
 
 def main() -> None:

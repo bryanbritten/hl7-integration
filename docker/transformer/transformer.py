@@ -5,7 +5,11 @@ from typing import Any
 
 import requests
 from hl7_helpers import get_msh_segment
-from prometheus_client import Counter, start_http_server
+from metrics import (
+    messages_fhir_conversion_attempts,
+    messages_fhir_conversion_successes,
+)
+from prometheus_client import start_http_server
 from s3_helpers import (
     FHIR_CONVERTER_API_VERSION,
     MINIO_DEADLETTER_BUCKET,
@@ -22,17 +26,6 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s: %(message)s",
 )
 logger = logging.getLogger(__name__)
-
-messages_fhir_conversion_attempts = Counter(
-    "messages_fhir_conversion_attempts",
-    "Total number of HL7 messages sent to the FHIR Converter API.",
-    ["message_type"],
-)
-messages_fhir_conversion_successes = Counter(
-    "messages_fhir_conversion_successes",
-    "Total number of HL7 messages successfully converted to the FHIR format.",
-    ["message_type"],
-)
 
 
 def convert_hl7_to_fhir(message: bytes, message_type: str) -> dict[str, Any]:
@@ -109,7 +102,9 @@ def main() -> None:
                 content_type="application/json",
             )
             logger.info("Successfully converted HL7 message to FHIR")
-            messages_fhir_conversion_successes.labels(message_type="ADT_A01").inc()
+            messages_fhir_conversion_successes.labels(
+                message_type=message_structure
+            ).inc()
 
         move_message_to_processed(
             bucket=MINIO_SILVER_BUCKET,
