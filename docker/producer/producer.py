@@ -5,7 +5,11 @@ import time
 
 from hl7_helpers import MESSAGE_REGISTRY
 from hl7_segment_generators import generate_segment
-from prometheus_client import Counter, start_http_server
+from metrics import (
+    messages_sent_total,
+    messages_unsent_total,
+)
+from prometheus_client import start_http_server
 
 logging.basicConfig(
     level=logging.INFO,
@@ -22,16 +26,6 @@ MESSAGE_TYPES = [
     "ADT_A01",
     "ADT_A03",
 ]
-
-messages_sent_total = Counter(
-    "messages_sent_total", "Total number of HL7 messages sent", ["message_type"]
-)
-
-messages_unsent_total = Counter(
-    "messages_unsent_total",
-    "Total number of HL7 messages that were not sent",
-    ["message_type"],
-)
 
 
 def build_message(message_type: str) -> bytes | None:
