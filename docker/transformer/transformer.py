@@ -102,7 +102,9 @@ def main() -> None:
                 content_type="application/json",
             )
             logger.info("Successfully converted HL7 message to FHIR")
-            messages_fhir_conversion_successes.labels(message_type="ADT_A01").inc()
+            messages_fhir_conversion_successes.labels(
+                message_type=message_structure
+            ).inc()
 
         move_message_to_processed(
             bucket=MINIO_SILVER_BUCKET,

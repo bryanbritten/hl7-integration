@@ -79,7 +79,9 @@ async def handle_client(reader: StreamReader, writer: StreamWriter) -> None:
         if not isinstance(msh_segment, str):
             msh_segment = msh_segment.to_er7()
 
-        messages_received_total.labels(message_type=message_type).inc()
+        messages_received_total.labels(
+            message_type=f"{message_type}_{trigger_event}"
+        ).inc()
 
         key = f"unprocessed/{message_type}/{trigger_event}/{timestamp}.hl7"
         write_data_to_s3(
