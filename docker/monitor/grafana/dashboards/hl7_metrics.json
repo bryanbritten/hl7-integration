@@ -19,7 +19,7 @@
     "editable": true,
     "fiscalYearStartMonth": 0,
     "graphTooltip": 0,
-    "id": 1,
+    "id": 2,
     "links": [],
     "panels": [
         {
@@ -109,8 +109,8 @@
                         "uid": "prometheus"
                     },
                     "disableTextWrap": false,
-                    "editorMode": "builder",
-                    "expr": "rate(messages_sent_total{message_type=\"ADT_A01\"}[1m])",
+                    "editorMode": "code",
+                    "expr": "sum by (message_type) (rate(messages_sent_total[1m]))",
                     "fullMetaSearch": false,
                     "includeNullMetadata": true,
                     "legendFormat": "__auto",
@@ -205,8 +205,8 @@
             "targets": [
                 {
                     "disableTextWrap": false,
-                    "editorMode": "builder",
-                    "expr": "rate(messages_received_total{message_type=\"ADT_A01\"}[1m])",
+                    "editorMode": "code",
+                    "expr": "sum by (message_type) (rate(messages_received_total[1m]))",
                     "fullMetaSearch": false,
                     "includeNullMetadata": true,
                     "legendFormat": "__auto",
@@ -301,8 +301,8 @@
             "targets": [
                 {
                     "disableTextWrap": false,
-                    "editorMode": "builder",
-                    "expr": "rate(messages_failed_quality_checks_total{message_type=\"ADT_A01\"}[1m])",
+                    "editorMode": "code",
+                    "expr": "sum by (message_type) (rate(messages_failed_quality_checks_total[1m]))",
                     "fullMetaSearch": false,
                     "includeNullMetadata": true,
                     "legendFormat": "__auto",
@@ -316,8 +316,8 @@
                         "uid": "prometheus"
                     },
                     "disableTextWrap": false,
-                    "editorMode": "builder",
-                    "expr": "rate(messages_failed_validated_total{message_type=\"ADT_A01\"}[1m])",
+                    "editorMode": "code",
+                    "expr": "sum by (message_type) (rate(messages_failed_validated_total[1m]))",
                     "fullMetaSearch": false,
                     "hide": false,
                     "includeNullMetadata": true,
@@ -333,8 +333,8 @@
                         "uid": "prometheus"
                     },
                     "disableTextWrap": false,
-                    "editorMode": "builder",
-                    "expr": "rate(messages_passed_total{message_type=\"ADT_A01\"}[1m])",
+                    "editorMode": "code",
+                    "expr": "sum by (message_type) (rate(messages_passed_total[1m]))",
                     "fullMetaSearch": false,
                     "hide": false,
                     "includeNullMetadata": true,
@@ -451,12 +451,12 @@
         "list": []
     },
     "time": {
-        "from": "now-15m",
+        "from": "now-5m",
         "to": "now"
     },
     "timepicker": {},
     "timezone": "browser",
     "title": "HL7 to FHIR Pipeline Performance Metrics",
     "uid": "69828684-5275-4e1f-9e98-8e7df4133d48",
-    "version": 5
+    "version": 1
 }
