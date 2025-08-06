@@ -44,7 +44,6 @@ def generate_msh_segment(message_type: str) -> bytes:
     return SEPARATOR.join(
         [
             "MSH",                          # MSH-0
-            SEPARATOR,                      # MSH-1
             DELIMITERS,                     # MSH-2
             "PythonHL7Producer",            # MSH-3
             "Bryan's Lab",                  # MSH-4
