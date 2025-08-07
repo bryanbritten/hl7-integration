@@ -5,9 +5,6 @@ from datetime import datetime
 from faker import Faker
 
 faker = Faker()
-faker_sp = Faker("es_ES")
-faker_fr = Faker("fr_FR")
-faker_jp = Faker("ja_JP")
 
 
 def with_error_rate(error_rate: float):
@@ -41,21 +38,11 @@ def generate_patient_name() -> str:
     Returns: str - A random patient name.
     """
 
-    n = random.random()
-    if n <= 0.6:
-        # 20% of English names include a middle name
-        if random.random() < 0.2:
-            return f"{faker.first_name()} {faker.first_name} {faker.last_name()}"
-        else:
-            return faker.name()
-    else:
-        n = random.random()
-        if n < 0.4:
-            return faker_sp.name()
-        elif n < 0.8:
-            return faker_fr.name()
-        else:
-            return faker_jp.name()
+    name = f"{faker.last_name()}^{faker.first_name()}"
+    # Pretend 20% of English names include a middle name
+    if random.random() < 0.2:
+        name = f"{name}^{faker.first_name()}"
+    return name
 
 
 @with_error_rate(error_rate=0.05)
