@@ -1,5 +1,6 @@
 import logging
 import random
+from typing import Any
 
 from fake_data_generators import (
     generate_admission_type,
@@ -30,6 +31,7 @@ faker = Faker()
 
 SEPARATOR = "|"
 DELIMITERS = "^~\\&"
+CR = b"\x0d"
 
 
 def generate_msh_segment(message_type: str) -> bytes:
@@ -170,3 +172,45 @@ def generate_segment(
         case _:
             logger.warning(f"No generator defined for segment of type {segment_type}")
             return b""
+
+
+def generate_segments(
+    segments: list[dict[str, Any]],
+    message_type: str,
+) -> bytes:
+    message_structure = message_type
+    message_type, trigger_event = message_type.split("_")
+
+    generated_segments = []
+
+    for segment in segments:
+        is_group = "segments" in segment
+        identifier = segment["identifier"]
+        required = segment["required"]
+        repeatable = segment["repeatable"]
+
+        if required and repeatable:
+            count = random.randint(1, 3)
+        elif required:
+            count = 1
+        elif repeatable:
+            count = random.randint(0, 3)
+        else:
+            count = 1 if random.random() < 0.5 else 0
+
+        for _ in range(count):
+            if is_group:
+                multi_segment_result = generate_segments(
+                    segment["segments"], message_structure
+                )
+                if multi_segment_result:
+                    generated_segments.append(multi_segment_result)
+            else:
+                segment_type = identifier
+                single_segment_result = generate_segment(
+                    segment_type, message_type, trigger_event, message_structure
+                )
+                if single_segment_result:
+                    generated_segments.append(single_segment_result)
+
+    return CR.join(generated_segments)

@@ -2,9 +2,10 @@ import logging
 import random
 import socket
 import time
+from typing import Any
 
 from hl7_helpers import MESSAGE_REGISTRY
-from hl7_segment_generators import generate_segment
+from hl7_segment_generators import generate_segments
 from metrics import (
     messages_sent_total,
     messages_unsent_total,
@@ -40,23 +41,8 @@ def build_message(message_type: str) -> bytes | None:
         logger.error(f"Unsupported message type identified: {message_type}")
         return None
 
-    message_structure = message_type
-    message_type, trigger_event = message_type.split("_")
-
-    segments = []
-    for segment_info in schema["segments"]:
-        # for simplicity, ignore segment groups
-        if segment_info.get("segments") is not None:
-            continue
-
-        if segment_info["required"] or random.random() <= 0.5:
-            segment_type = segment_info["identifier"]
-            segment = generate_segment(
-                segment_type, message_type, trigger_event, message_structure
-            )
-            segments.append(segment)
-
-    return CR.join(segments)
+    segments = generate_segments(schema["segments"], message_type)
+    return segments
 
 
 def send_message(message: bytes, message_type: str) -> bytes | None:
