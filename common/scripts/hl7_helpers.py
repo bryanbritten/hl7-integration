@@ -32,8 +32,8 @@ MESSAGE_REGISTRY = {
             segment("DG1", "Diagnosis", repeatable=True),
             segment("DRG", "Diagnosis Related Group"),
             {
-                "name": "Procedure",
                 "identifier": "ADT_A01_PROCEDURE",
+                "name": "Procedure",
                 "required": False,
                 "repeatable": True,
                 "segments": [
@@ -43,8 +43,8 @@ MESSAGE_REGISTRY = {
             },
             segment("GT1", "Guarantor", repeatable=True),
             {
-                "name": "Insurance",
                 "identifier": "ADT_A01_INSURANCE",
+                "name": "Insurance",
                 "required": False,
                 "repeatable": True,
                 "segments": [
@@ -72,8 +72,8 @@ MESSAGE_REGISTRY = {
             segment("DG1", "Diagnosis", repeatable=True),
             segment("DRG", "Diagnosis Related Group"),
             {
-                "name": "Procedure",
                 "identifier": "ADT_A03_PROCEDURE",
+                "name": "Procedure",
                 "required": False,
                 "repeatable": True,
                 "segments": [
@@ -83,6 +83,101 @@ MESSAGE_REGISTRY = {
             },
             segment("OBX", "Observation Segment", repeatable=True),
         ],
+    },
+    "ORU_R01": {
+        "segments": [
+            segment("MSH", "Message Segment Header", required=True),
+            segment("SFT", "Software Segment", repeatable=True),
+            {
+                "identifier": "ORU_R01_PATIENT_RESULT",
+                "name": "Patient Result",
+                "required": True,
+                "repeatable": True,
+                "segments": [
+                    {
+                        "identifier": "ORU_R01_PATIENT",
+                        "name": "Patient",
+                        "required": False,
+                        "repeatable": False,
+                        "segments": [
+                            segment("PID", "Patient Identification", required=True),
+                            segment("PD1", "Patient Additional Demographic"),
+                            segment("NTE", "Notes and Comments", repeatable=True),
+                            segment("NK1", "Next of Kin", repeatable=True),
+                            {
+                                "identifier": "ORU_R01_VISIT",
+                                "name": "Visit",
+                                "required": False,
+                                "repeatable": False,
+                                "segments": [
+                                    segment("PV1", "Patient Visit", required=True),
+                                    segment(
+                                        "PV2", "Patient Visit - Additional Information"
+                                    ),
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        "identifier": "ORU_R01_ORDER_OBSERVATION",
+                        "name": "Order Observation",
+                        "required": True,
+                        "repeatable": True,
+                        "segments": [
+                            segment("ORC", "Common Order"),
+                            segment("OBR", "Observation Request", required=True),
+                            segment("NTE", "Notes and Comments", repeatable=True),
+                            {
+                                "identifier": "ORU_R01_TIMING_QUANTITY",
+                                "name": "Timing Quantity",
+                                "required": False,
+                                "repeatable": True,
+                                "segments": [
+                                    segment("TQ1", "Timing/Quantity", required=True),
+                                    segment(
+                                        "TQ2",
+                                        "Timing/Quantity Relationship",
+                                        repeatable=True,
+                                    ),
+                                ],
+                            },
+                            segment("CTD", "Contact Data"),
+                            {
+                                "identifier": "ORU_R01_OBSERVATION",
+                                "name": "Observation",
+                                "required": False,
+                                "repeatable": True,
+                                "segments": [
+                                    segment(
+                                        "OBX", "Observation Segment", required=True
+                                    ),
+                                    segment(
+                                        "NTE", "Notes and Comments", repeatable=True
+                                    ),
+                                ],
+                            },
+                            segment("FT1", "Financial Transaction", repeatable=True),
+                            segment(
+                                "CTI", "Clinical Trial Identification", repeatable=True
+                            ),
+                            {
+                                "identifier": "ORU_R01_SPECIMEN",
+                                "name": "Specimen",
+                                "required": False,
+                                "repeatable": True,
+                                "segments": [
+                                    segment("SPM", "Specimen", required=True),
+                                    segment(
+                                        "OBX", "Observation Segment", repeatable=True
+                                    ),
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+            segment("DSC", "Continuation Pointer"),
+        ]
     },
 }
 
