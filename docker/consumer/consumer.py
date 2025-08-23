@@ -42,7 +42,7 @@ def consume_messages(consumer: Consumer) -> None:
             (v.decode("utf-8") for k, v in msg.headers() if k == "hl7.message_type"),
             None,
         )
-        messages_received_total.labels(message_type=message_type)
+        messages_received_total.labels(message_type=message_type).inc()
         process_message(message)
         consumer.commit(message=msg, asynchronous=False)
 
