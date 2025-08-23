@@ -16,6 +16,8 @@ services:
     build:
       context: ./docker/broker/kafka
     container_name: kafka
+    env_file:
+      - .env
     ports:
       - "9092:9092"
     depends_on:

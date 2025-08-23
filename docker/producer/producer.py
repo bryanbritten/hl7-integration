@@ -1,11 +1,12 @@
 import logging
 import os
 import random
-import socket
+import threading
 import time
 
+from confluent_kafka import Producer
 from dotenv import load_dotenv
-from hl7_helpers import MESSAGE_REGISTRY
+from hl7_helpers import MESSAGE_REGISTRY, get_msh_segment
 from hl7_segment_generators import generate_segments
 from metrics import (
     messages_sent_total,
@@ -21,15 +22,38 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-START = b"\x0b"  # VT
-END = b"\x1c"  # FS
-CR = b"\x0d"  # CR
+TOPIC = "HL7"
+KAFKA_BROKERS = os.environ["KAFKA_BROKERS"]
 MESSAGE_TYPES = [
     "ADT_A01",
     "ADT_A03",
 ]
-CONSUMER_HOST = os.environ["CONSUMER_HOST"]
-CONSUMER_PORT = int(os.environ["CONSUMER_PORT"])
+
+producer = Producer(
+    {
+        "bootstrap.servers": KAFKA_BROKERS,
+        "acks": "1",
+        "linger.ms": 10,
+        "retries": 3,
+        "compression.type": "lz4",
+    }
+)
+
+# simple background poller to service delivery callbacks
+_stop = threading.Event()
+
+
+def _poller():
+    while not _stop.is_set():
+        producer.poll(0.1)
+    producer.flush(5)
+
+
+threading.Thread(target=_poller, daemon=True).start()
+
+
+def shutdown_producer():
+    _stop.set()
 
 
 def build_message(message_type: str) -> bytes | None:
@@ -48,30 +72,34 @@ def build_message(message_type: str) -> bytes | None:
     return segments
 
 
-def send_message(message: bytes, message_type: str) -> bytes | None:
+def send_message(message: bytes, message_type: str) -> None:
     """
-    Sends the HL7 message to the consumer service.
+    Sends the HL7 message to the Kafka service.
 
     message: bytes - The HL7 message to send.
     """
 
-    try:
-        with socket.create_connection(
-            (CONSUMER_HOST, CONSUMER_PORT), timeout=10
-        ) as sock:
-            sock.sendall(START + message + END + CR)
-            ack = sock.recv(4096)
+    def on_delivery(err, msg):
+        if err is not None:
+            messages_unsent_total.labels(message_type=message_type).inc()
+        else:
+            messages_sent_total.labels(message_type=message_type).inc()
 
-            if ack:
-                logger.info("Message successfully sent.")
-                messages_sent_total.labels(message_type=message_type).inc()
-            else:
-                logger.error("Message filed to send.")
-                messages_unsent_total.labels(message_type=message_type).inc()
-    # In a production environment, specific exceptions should be caught
-    except Exception as e:
-        logger.exception(f"Unexpected exception: {str(e)}")
-        return None
+    while True:
+        msh = get_msh_segment(message)
+        key = msh.msh_10.to_er7() or "some-random-key"
+        try:
+            producer.produce(
+                topic=TOPIC,
+                value=message,
+                key=key,
+                headers=[("hl7.message_type", message_type.encode("utf-8"))],
+                callback=on_delivery,
+            )
+            break
+        except BufferError:
+            producer.poll(0.1)
+            time.sleep(0.05)
 
 
 def main():
@@ -87,4 +115,5 @@ def main():
 
 if __name__ == "__main__":
     start_http_server(8000)
+    logger.info(f"Producer starting. Brokers: {KAFKA_BROKERS} Topic: {TOPIC}")
     main()
