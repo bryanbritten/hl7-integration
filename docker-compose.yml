@@ -38,9 +38,13 @@ services:
     ports:
       - "${MINIO_API_PORT}:${MINIO_API_PORT}"
       - "${MINIO_CONSOLE_PORT}:${MINIO_CONSOLE_PORT}"
-    volumes:
-      - minio-data:/data
     restart: on-failure
+    healthcheck:
+      test: [ "CMD", "mc", "ready", "local" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
   minio-client:
     build:
       context: ./docker/storage/minio-client
@@ -59,7 +63,8 @@ services:
     env_file:
       - .env
     depends_on:
-      - consumer
+      kafka:
+        condition: service_healthy
     restart: on-failure
     healthcheck:
       test: [ "CMD", "bash", "-c", "echo ruok | nc -w 2 localhost 2181 | grep imok" ]
@@ -75,8 +80,10 @@ services:
     env_file:
       - .env
     depends_on:
+      kafka:
+        condition: service_healthy
       minio:
-        condition: service_started
+        condition: service_healthy
       minio-client:
         condition: service_completed_successfully
     ports:
