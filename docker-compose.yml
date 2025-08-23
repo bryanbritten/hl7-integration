@@ -4,6 +4,8 @@ services:
       context: .
       dockerfile: docker/producer/Dockerfile
     container_name: producer
+    env_file:
+      - .env
     depends_on:
       - consumer
     restart: on-failure
@@ -18,6 +20,8 @@ services:
       context: .
       dockerfile: docker/consumer/Dockerfile
     container_name: consumer
+    env_file:
+      - .env
     depends_on:
       - minio
     ports:
@@ -33,9 +37,12 @@ services:
     build:
       context: ./docker/storage/minio
     container_name: minio
+    env_file:
+      - .env
+    command: [ "server", "/data", "--console-address", ":${MINIO_CONSOLE_PORT}" ]
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "${MINIO_API_PORT}:${MINIO_API_PORT}"
+      - "${MINIO_CONSOLE_PORT}:${MINIO_CONSOLE_PORT}"
     volumes:
       - minio-data:/data
     restart: on-failure
@@ -43,6 +50,8 @@ services:
     build:
       context: ./docker/storage/minio-client
     container_name: minio-client
+    env_file:
+      - .env
     depends_on:
       - minio
     restart: on-failure
@@ -51,6 +60,8 @@ services:
       context: .
       dockerfile: docker/validator/Dockerfile
     container_name: validator
+    env_file:
+      - .env
     depends_on:
       - minio
     restart: on-failure
@@ -64,6 +75,8 @@ services:
     build:
       context: ./docker/fhir-converter
     container_name: fhir-converter
+    env_file:
+      - .env
     restart: on-failure
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8080/health/check" ]
@@ -76,6 +89,8 @@ services:
       context: .
       dockerfile: docker/transformer/Dockerfile
     container_name: transformer
+    env_file:
+      - .env
     depends_on:
       - minio
       - fhir-converter
@@ -90,6 +105,8 @@ services:
     build:
       context: ./docker/monitor/prometheus
     container_name: prometheus
+    env_file:
+      - .env
     ports:
       - "9090:9090"
     restart: on-failure
@@ -103,6 +120,8 @@ services:
     build:
       context: ./docker/monitor/grafana
     container_name: grafana
+    env_file:
+      - .env
     ports:
       - "3000:3000"
     restart: on-failure

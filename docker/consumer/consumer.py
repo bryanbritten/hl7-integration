@@ -1,8 +1,10 @@
 import asyncio
 import logging
+import os
 from asyncio import StreamReader, StreamWriter
 from datetime import datetime, timezone
 
+from dotenv import load_dotenv
 from hl7_helpers import get_msh_segment
 from hl7apy.exceptions import ParserError
 from metrics import (
@@ -17,10 +19,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+load_dotenv()
+
 START = b"\x0b"
 END = b"\x1c"
 CR = b"\x0d"
-PORT = 2575
+PORT = os.environ["CONSUMER_PORT"]
 
 
 def build_ack(

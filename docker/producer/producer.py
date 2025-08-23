@@ -1,9 +1,10 @@
 import logging
+import os
 import random
 import socket
 import time
-from typing import Any
 
+from dotenv import load_dotenv
 from hl7_helpers import MESSAGE_REGISTRY
 from hl7_segment_generators import generate_segments
 from metrics import (
@@ -18,8 +19,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-CONSUMER_HOST = "consumer"
-CONSUMER_PORT = 2575
+load_dotenv()
+
 START = b"\x0b"  # VT
 END = b"\x1c"  # FS
 CR = b"\x0d"  # CR
@@ -27,6 +28,8 @@ MESSAGE_TYPES = [
     "ADT_A01",
     "ADT_A03",
 ]
+CONSUMER_HOST = os.environ["CONSUMER_HOST"]
+CONSUMER_PORT = int(os.environ["CONSUMER_PORT"])
 
 
 def build_message(message_type: str) -> bytes | None:

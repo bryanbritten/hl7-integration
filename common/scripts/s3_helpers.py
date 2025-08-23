@@ -1,18 +1,21 @@
+import os
 from typing import Optional
 
 import boto3
 from botocore.config import Config
+from dotenv import load_dotenv
 
-MINIO_ENDPOINT = "minio:9000"
-MINIO_ACCESS_KEY = "admin"
-MINIO_SECRET_KEY = "password123"
+load_dotenv()
+
+MINIO_API_PORT = os.environ["MINIO_API_PORT"]
+MINIO_ENDPOINT = f"minio:{MINIO_API_PORT}"
+MINIO_ACCESS_KEY = os.environ["MINIO_ROOT_USER"]
+MINIO_SECRET_KEY = os.environ["MINIO_ROOT_PASSWORD"]
 MINIO_BRONZE_BUCKET = "bronze"
 MINIO_SILVER_BUCKET = "silver"
 MINIO_GOLD_BUCKET = "gold"
 MINIO_DEADLETTER_BUCKET = "deadletter"
-
-FHIR_CONVERTER_API_VERSION = "2024-05-01-preview"
-
+FHIR_CONVERTER_API_VERSION = os.environ["FHIR_CONVERTER_API_VERSION"]
 POLL_INTERVAL = 10  # seconds
 
 s3 = boto3.client(

@@ -5,7 +5,7 @@ WORKDIR /transformer
 COPY docker/transformer/ /transformer
 COPY common/scripts/ /transformer/
 
-RUN pip install --no-cache-dir boto3 hl7apy requests prometheus-client
+RUN pip install --no-cache-dir boto3 hl7apy requests prometheus-client python-dotenv
 
 EXPOSE 8000
 
