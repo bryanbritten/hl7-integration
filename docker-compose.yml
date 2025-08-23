@@ -1,4 +1,27 @@
 services:
+  minio:
+    build:
+      context: ./docker/storage/minio
+    container_name: minio
+    env_file:
+      - .env
+    command: [ "server", "/data", "--console-address", ":${MINIO_CONSOLE_PORT}" ]
+    ports:
+      - "${MINIO_API_PORT}:${MINIO_API_PORT}"
+      - "${MINIO_CONSOLE_PORT}:${MINIO_CONSOLE_PORT}"
+    volumes:
+      - minio-data:/data
+    restart: on-failure
+  minio-client:
+    build:
+      context: ./docker/storage/minio-client
+    container_name: minio-client
+    env_file:
+      - .env
+    depends_on:
+      minio:
+        condition: service_started
+    restart: no
   producer:
     build:
       context: .
@@ -23,7 +46,10 @@ services:
     env_file:
       - .env
     depends_on:
-      - minio
+      minio:
+        condition: service_started
+      minio-client:
+        condition: service_completed_successfully
     ports:
       - "2575:2575"
     restart: on-failure
@@ -33,28 +59,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-  minio:
-    build:
-      context: ./docker/storage/minio
-    container_name: minio
-    env_file:
-      - .env
-    command: [ "server", "/data", "--console-address", ":${MINIO_CONSOLE_PORT}" ]
-    ports:
-      - "${MINIO_API_PORT}:${MINIO_API_PORT}"
-      - "${MINIO_CONSOLE_PORT}:${MINIO_CONSOLE_PORT}"
-    volumes:
-      - minio-data:/data
-    restart: on-failure
-  minio-client:
-    build:
-      context: ./docker/storage/minio-client
-    container_name: minio-client
-    env_file:
-      - .env
-    depends_on:
-      - minio
-    restart: on-failure
   validator:
     build:
       context: .
