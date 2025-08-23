@@ -6,8 +6,9 @@ COPY docker/consumer/ /consumer
 COPY common/scripts/ /consumer
 
 RUN mkdir /messages
-RUN pip install --no-cache-dir boto3 hl7apy prometheus-client python-dotenv
-
-EXPOSE 2575 8000
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends librdkafka-dev \
+    && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir boto3 confluent-kafka hl7apy prometheus-client python-dotenv
 
 CMD ["python", "consumer.py"]
