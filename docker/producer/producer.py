@@ -110,7 +110,8 @@ def main():
             send_message(message, message_type)
         else:
             logger.error(f"Failed to build message of message type {message_type}")
-        time.sleep(random.uniform(1, 5))
+        delay = random.expovariate(5)
+        time.sleep(delay)
 
 
 if __name__ == "__main__":
