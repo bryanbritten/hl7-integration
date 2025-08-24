@@ -1,4 +1,4 @@
-from hl7apy.core import Segment
+from hl7apy.core import Message, Segment
 from hl7apy.exceptions import ParserError
 from hl7apy.parser import parse_message, parse_segment
 
@@ -193,4 +193,11 @@ def manually_extract_msh_segment(message: str) -> str:
     msh_candidates = [segment for segment in segments if segment.startswith("MSH")]
     if not any(msh_candidates):
         raise ParserError
-    return msh_candidates[0]
+    most_likely_candidate = sorted(msh_candidates, key=len, reverse=True)[0]
+    return most_likely_candidate
+
+
+def generate_empty_msh_segment(trigger_event: str) -> str:
+    m = Message("ADT_A01")
+    m.msh.msh_10 = f"ACK^{trigger_event}"
+    return m.msh.to_er7()
