@@ -26,16 +26,19 @@ def to_header(key: str, value: str) -> tuple[str, bytes]:
 
 
 def generate_dlq_headers(
-    msg_key: str,
-    error_type: str,
+    error_stage: str,
     error_message: str,
+    msg_key: Optional[str] = None,
     issues: Optional[list[dict[str, str | int]]] = [],
 ) -> list[tuple[str, bytes]]:
     headers = [
-        to_header("message.key", msg_key),
-        to_header("error.type", error_type),
+        to_header("error.stage", error_stage),
         to_header("error.message", error_message),
     ]
+
+    if msg_key:
+        msg_key_header = to_header("msg.key", msg_key)
+        headers.append(msg_key_header)
 
     if issues:
         encoded_issues = json.dumps(issues).encode("utf-8")
