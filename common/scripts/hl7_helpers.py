@@ -1,4 +1,5 @@
 from hl7apy.core import Segment
+from hl7apy.exceptions import ParserError
 from hl7apy.parser import parse_message, parse_segment
 
 
@@ -191,5 +192,5 @@ def manually_extract_msh_segment(message: str) -> str:
     segments = message.split("\r")
     msh_candidates = [segment for segment in segments if segment.startswith("MSH")]
     if not any(msh_candidates):
-        raise ValueError(f"No MSH segment present: {segments}")
+        raise ParserError
     return msh_candidates[0]

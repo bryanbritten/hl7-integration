@@ -86,7 +86,11 @@ def handle_error(
 
 
 def process_message(message: bytes) -> None:
+    # initialize variables used in error handling
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
+    msh_segment = None
+    message_control_id = None
+
     try:
         msh_segment = get_msh_segment(message)
         separator = msh_segment.msh_1.to_er7()
@@ -94,16 +98,21 @@ def process_message(message: bytes) -> None:
         trigger_event = msh_segment.msh_9.msh_9_2.to_er7()
         message_control_id = msh_segment.msh_10.to_er7()
     except ParserError:
-        logger.warning(
-            "Failed to automatically extract MSH segment, so doing it manually"
-        )
-        msh_segment = manually_extract_msh_segment(message.decode("utf-8"))
-        separator = msh_segment[3]
-        fields = msh_segment.split(separator)
-        message_type, trigger_event, _ = fields[8].split("^")
-        message_control_id = fields[9]
-    if not isinstance(msh_segment, str):
-        msh_segment = msh_segment.to_er7()
+        try:
+            logger.warning(
+                "Failed to automatically extract MSH segment, attempting it manually"
+            )
+            msh_segment = manually_extract_msh_segment(message.decode("utf-8"))
+            separator = msh_segment[3]
+            fields = msh_segment.split(separator)
+            message_type, trigger_event, _ = fields[8].split("^")
+            message_control_id = fields[9]
+        except ParserError as e:
+            handle_error(e, message, msh_segment, message_control_id)
+            return
+    except Exception as e:
+        handle_error(e, message, msh_segment, message_control_id)
+        return
 
     key = f"unprocessed/{message_type}/{trigger_event}/{timestamp}.hl7"
     write_data_to_s3(
@@ -111,6 +120,9 @@ def process_message(message: bytes) -> None:
         key=key,
         body=message,
     )
+
+    if not isinstance(msh_segment, str):
+        msh_segment = msh_segment.to_er7()
 
     ack = build_ack(
         msh_segment=msh_segment,
