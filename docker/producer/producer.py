@@ -14,10 +14,7 @@ from hl7_helpers import (
     parse_msh_segment,
 )
 from hl7_segment_generators import generate_segments
-from metrics import (
-    messages_sent_total,
-    messages_unsent_total,
-)
+from metrics import messages_sent_total
 
 logging.basicConfig(
     level=logging.INFO,
@@ -61,7 +58,7 @@ def shutdown_producer():
     _stop.set()
 
 
-def build_message(message_type: str) -> bytes | None:
+def build_message(message_type: str) -> bytes:
     """
     Builds a complete message with the required segments.
 
@@ -70,8 +67,7 @@ def build_message(message_type: str) -> bytes | None:
 
     schema = MESSAGE_REGISTRY.get(message_type)
     if schema is None:
-        logger.error(f"Unsupported message type identified: {message_type}")
-        return None
+        return b""
 
     segments = generate_segments(schema["segments"], message_type)
     return segments
@@ -85,9 +81,7 @@ def send_message(message: bytes, message_type: str) -> None:
     """
 
     def on_delivery(err, msg):
-        if err is not None:
-            messages_unsent_total.labels(message_type=message_type).inc()
-        else:
+        if msg and not err:
             messages_sent_total.labels(message_type=message_type).inc()
 
     while True:
