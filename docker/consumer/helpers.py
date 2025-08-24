@@ -5,12 +5,13 @@ from typing import Optional
 
 from confluent_kafka import Producer
 from dotenv import load_dotenv
+from hl7apy.exceptions import ParserError
+
 from hl7_helpers import (
     generate_empty_msh_segment,
     get_msh_segment,
     manually_extract_msh_segment,
 )
-from hl7apy.exceptions import ParserError
 from s3_helpers import MINIO_BRONZE_BUCKET, write_data_to_s3
 
 logging.basicConfig(

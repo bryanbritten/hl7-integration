@@ -3,14 +3,16 @@ import logging
 import time
 from typing import Any
 
+from prometheus_client import start_http_server
+from quality_assurance import ADTA01QualityChecker
+from validation import HL7Validator
+
 from metrics import (
     messages_failed_parsing_total,
     messages_failed_quality_checks_total,
     messages_failed_validation_total,
     messages_passed_total,
 )
-from prometheus_client import start_http_server
-from quality_assurance import ADTA01QualityChecker
 from s3_helpers import (
     MINIO_BRONZE_BUCKET,
     MINIO_DEADLETTER_BUCKET,
@@ -20,7 +22,6 @@ from s3_helpers import (
     move_message_to_processed,
     write_data_to_s3,
 )
-from validation import HL7Validator
 
 logging.basicConfig(
     level=logging.INFO,

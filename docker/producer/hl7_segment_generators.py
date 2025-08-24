@@ -2,6 +2,8 @@ import logging
 import random
 from typing import Any
 
+from faker import Faker
+
 from fake_data_generators import (
     generate_admission_type,
     generate_admit_source,
@@ -20,7 +22,6 @@ from fake_data_generators import (
     generate_random_date_time,
     generate_uuid,
 )
-from faker import Faker
 
 logging.basicConfig(
     level=logging.INFO,

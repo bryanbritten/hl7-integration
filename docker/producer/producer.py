@@ -6,6 +6,8 @@ import time
 
 from confluent_kafka import Producer
 from dotenv import load_dotenv
+from prometheus_client import start_http_server
+
 from hl7_helpers import (
     MESSAGE_REGISTRY,
     manually_extract_msh_segment,
@@ -16,7 +18,6 @@ from metrics import (
     messages_sent_total,
     messages_unsent_total,
 )
-from prometheus_client import start_http_server
 
 logging.basicConfig(
     level=logging.INFO,

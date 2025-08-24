@@ -4,10 +4,11 @@ import os
 from confluent_kafka import Consumer, KafkaError
 from dotenv import load_dotenv
 from helpers import process_message
+from prometheus_client import start_http_server
+
 from metrics import (
     messages_received_total,
 )
-from prometheus_client import start_http_server
 
 logging.basicConfig(
     level=logging.INFO,

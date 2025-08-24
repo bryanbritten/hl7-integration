@@ -1,9 +1,10 @@
 import logging
 
-from hl7_helpers import MESSAGE_REGISTRY
 from hl7apy.core import Message
 from hl7apy.exceptions import ParserError
 from hl7apy.parser import parse_message
+
+from hl7_helpers import MESSAGE_REGISTRY
 
 logging.basicConfig(
     level=logging.INFO,
