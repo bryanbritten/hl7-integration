@@ -4,7 +4,7 @@ from typing import Optional
 
 from dotenv import load_dotenv
 from hl7apy.exceptions import ParserError
-from kafka_helpers import send_to_topic
+from kafka_helpers import generate_dlq_headers, send_to_topic
 
 from hl7_helpers import (
     generate_empty_msh_segment,
@@ -50,10 +50,18 @@ def handle_error(
     msh_segment: Optional[str] = None,
     message_control_id: Optional[str] = None,
 ) -> None:
+    dlq_headers = []
+
     # if the MSH segment is None then the hl7apy parser and the custom extraction failed.
     if msh_segment is None:
-        logger.exception(f"Failed to extract the MSH header: {str(e)}")
         error_message = "Failed to extract MSH segment."
+        logger.exception(f"{error_message}: {str(e)}")
+
+        dlq_headers = generate_dlq_headers(
+            error_stage="ingestion",
+            error_message=error_message,
+        )
+
         message_failures_total.labels(
             reason="Missing Required Segment", element="MSH", service="consumer"
         ).inc()
@@ -63,16 +71,28 @@ def handle_error(
     #   2. The MSH segment was extracted via custom logic and either the MSH segment is
     #      malformed or the MSH-10 field is missing.
     elif message_control_id is None:
-        logger.exception(f"Failed to extract MSH-10: {str(e)}")
         error_message = "MSH-10 is required but was not found."
+        logger.exception(f"{error_message}: {str(e)}")
+
+        dlq_headers = generate_dlq_headers(
+            error_stage="ingestion",
+            error_message=error_message,
+        )
+
         message_failures_total.labels(
             reason="Missing Field", element="MSH-10", service="consumer"
         ).inc()
     # if the message was received, the MSH header was parsed, and MSH-10 was not empty,
     # then something unidentified occurred.
     else:
-        logger.exception(f"Unexpected error: {str(e)}")
         error_message = "The message could not be processed."
+        logger.exception(f"{error_message}: {str(e)}")
+
+        dlq_headers = generate_dlq_headers(
+            error_stage="ingestion",
+            error_message=error_message,
+        )
+
         message_failures_total.labels(
             reason="Unknown", element="Unknown", service="consumer"
         ).inc()
@@ -92,7 +112,8 @@ def handle_error(
     # the message was reprocessed.
     send_to_topic(ack, "ACKS")
     hl7_acks_total.labels(status="AE").inc()
-    send_to_topic(message, "DLQ")
+
+    send_to_topic(message, "DLQ", dlq_headers)
 
 
 def process_message(message: bytes) -> None:
