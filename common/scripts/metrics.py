@@ -19,7 +19,7 @@ hl7_acks_total = Counter(
 message_failures_total = Counter(
     "message_failures_total",
     "Total number of HL7 messages that failed parsing, validation, or data quality checks",
-    ["reason", "service"],
+    ["reason", "element", "service"],
 )
 
 messages_passed_total = Counter(

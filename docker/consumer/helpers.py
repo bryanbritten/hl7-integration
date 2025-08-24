@@ -70,7 +70,9 @@ def handle_error(
     if msh_segment is None:
         logger.exception(f"Failed to extract the MSH header: {str(e)}")
         error_message = "Failed to extract MSH segment."
-        message_failures_total.labels(reason="Missing MSH Segment", service="consumer").inc()
+        message_failures_total.labels(
+            reason="Missing Required Segment", element="MSH", service="consumer"
+        ).inc()
     # if the message_control_id is None then one of the following two things happened:
     #   1. The message was successfully parsed by the `hl7apy` library and the MSH-10
     #      field was empty.
@@ -79,13 +81,17 @@ def handle_error(
     elif message_control_id is None:
         logger.exception(f"Failed to extract MSH-10: {str(e)}")
         error_message = "MSH-10 is required but was not found."
-        message_failures_total.labels(reason="Missing Field: MSH-10", service="consumer").inc()
+        message_failures_total.labels(
+            reason="Missing Field", element="MSH-10", service="consumer"
+        ).inc()
     # if the message was received, the MSH header was parsed, and MSH-10 was not empty,
     # then something unidentified occurred.
     else:
         logger.exception(f"Unexpected error: {str(e)}")
         error_message = "The message could not be processed."
-        message_failures_total.labels(reason="Unknown", service="consumer").inc()
+        message_failures_total.labels(
+            reason="Unknown", element="Unknown", service="consumer"
+        ).inc()
 
     ack = build_ack(
         "AE",

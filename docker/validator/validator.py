@@ -3,14 +3,9 @@ import logging
 import time
 
 from prometheus_client import start_http_server
-from quality_assurance import ADTA01QualityChecker
-from validation import HL7Validator
 
-from metrics import (
-    messages_failed_quality_checks_total,
-    messages_failed_validation_total,
-    messages_passed_total,
-)
+from metrics import message_failures_total, messages_passed_total
+from quality_assurance import ADTA01QualityChecker
 from s3_helpers import (
     MINIO_BRONZE_BUCKET,
     MINIO_DEADLETTER_BUCKET,
@@ -20,6 +15,7 @@ from s3_helpers import (
     move_message_to_processed,
     write_data_to_s3,
 )
+from validation import HL7Validator
 
 logging.basicConfig(
     level=logging.INFO,
@@ -54,14 +50,22 @@ def main() -> None:
                 key=deadletter_key,
                 body=message,
             )
-            messages_failed_validation_total.labels(message_type=message_structure).inc()
 
             if not validator.has_required_segments():
                 logger.error(f"Message does not contain required segments: {key}")
+                message_failures_total.labels(
+                    reason="Missing Required Segment", element="Unknown", service="validation"
+                )
             elif not validator.all_segments_are_valid():
                 logger.error(f"Message contains invalid segment(s): {key}")
+                message_failures_total.labels(
+                    reason="Invalid Segment", element="Unknown", service="validation"
+                )
             elif not validator.segment_cardinality_is_valid():
                 logger.error(f"Message contains invalid repeated segments: {key}")
+                message_failures_total.labels(
+                    reason="Invalid Segment Cardinality", element="Unknown", service="validation"
+                )
         elif len(issues) > 0:
             deadletter_key = key.replace(
                 f"unprocessed/{message_type}/{trigger_event}",
@@ -73,8 +77,9 @@ def main() -> None:
             ).replace(".hl7", "-issues.json")
 
             logger.error(f"Message failed data quality checks. See {issues_key} for details")
-
-            messages_failed_quality_checks_total.labels(message_type=message_structure).inc()
+            message_failures_total.labels(
+                reason="Failed Data Quality Checks", element="Unknown", service="validation"
+            ).inc()
 
             write_data_to_s3(
                 bucket=MINIO_DEADLETTER_BUCKET,

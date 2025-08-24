@@ -13,7 +13,9 @@ known_first_party = [
     "hl7_helpers",
     "s3_helpers",
     "fake_data_generators",
-    "hl7_segment_generators"
+    "hl7_segment_generators",
+    "quality_assurance",
+    "validation",
 ]
 
 [tool.ruff]
