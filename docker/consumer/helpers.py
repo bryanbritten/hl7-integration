@@ -1,11 +1,10 @@
 import logging
-import os
 from datetime import datetime, timezone
 from typing import Optional
 
-from confluent_kafka import Producer
 from dotenv import load_dotenv
 from hl7apy.exceptions import ParserError
+from kafka_helpers import send_to_topic
 
 from hl7_helpers import (
     generate_empty_msh_segment,
@@ -22,21 +21,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 load_dotenv()
-
-producer = Producer(
-    {
-        "bootstrap.servers": os.environ["KAFKA_BROKERS"],
-        "acks": 1,
-    }
-)
-
-
-def send_to_topic(message: bytes, topic: str) -> None:
-    producer.produce(
-        topic=topic,
-        value=message,
-    )
-    producer.flush()
 
 
 def build_ack(
