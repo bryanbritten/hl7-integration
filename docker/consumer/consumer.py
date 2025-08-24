@@ -58,7 +58,7 @@ def main() -> None:
             process_message(message)
             consumer.commit(message=msg)
         except Exception as e:
-            logger.error(f"Processing failed. Not committing offset. Details: {e}")
+            logger.exception(f"Processing failed. Not committing offset. Details: {e}")
 
             # "rewind" the partition so that it sticks on the broken message
             # this will cause this consumer to freeze on that message causing

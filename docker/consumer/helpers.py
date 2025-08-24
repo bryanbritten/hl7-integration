@@ -98,7 +98,7 @@ def handle_error(
 def process_message(message: bytes) -> None:
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
     # initialize variables used in building the ACK message
-    msh_segment = separator = message_control_id = None
+    msh_segment_str = separator = message_control_id = None
 
     try:
         msh_segment = get_msh_segment(message)
@@ -106,23 +106,23 @@ def process_message(message: bytes) -> None:
         message_type = msh_segment.msh_9.msh_9_1.to_er7()
         trigger_event = msh_segment.msh_9.msh_9_2.to_er7()
         message_control_id = msh_segment.msh_10.to_er7()
+        msh_segment_str = msh_segment.to_er7()
 
         if not message_control_id or not message_type or not trigger_event:
             message_control_id = message_control_id or None
             raise ValueError("No valid MSH-9 and/or MSH-10 field was found.")
 
-        msh_segment = msh_segment.to_er7()
     except ParserError:
         try:
             logger.warning("Failed to automatically extract MSH segment, attempting it manually")
 
-            msh_segment = manually_extract_msh_segment(message.decode("utf-8"))
-            if len(msh_segment) < 4:
+            msh_segment_str = manually_extract_msh_segment(message.decode("utf-8"))
+            if len(msh_segment_str) < 4:
                 msh_segment = None
                 raise ParserError("No valid MSH segment found.")
 
-            separator = msh_segment[3]
-            fields = msh_segment.split(separator)
+            separator = msh_segment_str[3]
+            fields = msh_segment_str.split(separator)
             if len(fields) < 10:
                 message_control_id = None
                 raise ValueError("No valid MSH-9 and/or MSH-10 field was found.")
@@ -130,10 +130,10 @@ def process_message(message: bytes) -> None:
             message_type, trigger_event, _ = fields[8].split("^")
             message_control_id = fields[9]
         except (ParserError, ValueError) as e:
-            handle_error(e, message, separator, msh_segment, message_control_id)
+            handle_error(e, message, separator, msh_segment_str, message_control_id)
             return
     except ValueError as e:
-        handle_error(e, message, separator, msh_segment, message_control_id)
+        handle_error(e, message, separator, msh_segment_str, message_control_id)
         return
 
     key = f"unprocessed/{message_type}/{trigger_event}/{timestamp}.hl7"
@@ -145,7 +145,7 @@ def process_message(message: bytes) -> None:
 
     ack = build_ack(
         "AA",
-        msh_segment=msh_segment,
+        msh_segment=msh_segment_str,
         separator=separator,
         message_control_id=message_control_id,
     )
