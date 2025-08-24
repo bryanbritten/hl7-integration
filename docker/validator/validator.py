@@ -1,14 +1,12 @@
 import json
 import logging
 import time
-from typing import Any
 
 from prometheus_client import start_http_server
 from quality_assurance import ADTA01QualityChecker
 from validation import HL7Validator
 
 from metrics import (
-    messages_failed_parsing_total,
     messages_failed_quality_checks_total,
     messages_failed_validation_total,
     messages_passed_total,
@@ -34,9 +32,7 @@ def main() -> None:
     while True:
         key, message = get_message_from_s3(MINIO_BRONZE_BUCKET)
         if not message:
-            logger.info(
-                f"Failed to find new messages. Checking again in {POLL_INTERVAL} seconds."
-            )
+            logger.info(f"Failed to find new messages. Checking again in {POLL_INTERVAL} seconds.")
             time.sleep(POLL_INTERVAL)
             continue
 
@@ -46,9 +42,7 @@ def main() -> None:
 
         message_type = validator.parsed_message.msh.msh_9.msh_9_1.to_er7() or "UNK"
         trigger_event = validator.parsed_message.msh.msh_9.msh_9_2.to_er7() or "UNK"
-        message_structure = (
-            validator.parsed_message.msh.msh_9.msh_9_3.to_er7() or "UNK_UNK"
-        )
+        message_structure = validator.parsed_message.msh.msh_9.msh_9_3.to_er7() or "UNK_UNK"
 
         if not validator.message_is_valid():
             deadletter_key = key.replace(
@@ -60,9 +54,7 @@ def main() -> None:
                 key=deadletter_key,
                 body=message,
             )
-            messages_failed_validation_total.labels(
-                message_type=message_structure
-            ).inc()
+            messages_failed_validation_total.labels(message_type=message_structure).inc()
 
             if not validator.has_required_segments():
                 logger.error(f"Message does not contain required segments: {key}")
@@ -80,13 +72,9 @@ def main() -> None:
                 f"{message_type}/{trigger_event}/issues",
             ).replace(".hl7", "-issues.json")
 
-            logger.error(
-                f"Message failed data quality checks. See {issues_key} for details"
-            )
+            logger.error(f"Message failed data quality checks. See {issues_key} for details")
 
-            messages_failed_quality_checks_total.labels(
-                message_type=message_structure
-            ).inc()
+            messages_failed_quality_checks_total.labels(message_type=message_structure).inc()
 
             write_data_to_s3(
                 bucket=MINIO_DEADLETTER_BUCKET,

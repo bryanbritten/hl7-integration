@@ -1,5 +1,4 @@
 import os
-from typing import Optional
 
 import boto3
 from botocore.config import Config
@@ -52,9 +51,7 @@ def get_message_from_s3(bucket: str) -> tuple[str, bytes] | tuple[None, None]:
         return None, None
 
 
-def move_message_to_processed(
-    bucket: str, source_key: str, destination_key: str
-) -> None:
+def move_message_to_processed(bucket: str, source_key: str, destination_key: str) -> None:
     """
     Effectively changes the prefix of the key to move the message from "bronze/unprocessed"
     to "bronze/processed".

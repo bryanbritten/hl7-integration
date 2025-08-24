@@ -4,7 +4,7 @@ target-version = ['py312']
 
 [tool.autohooks]
 mode = "pythonpath"
-pre-commit = ["autohooks.plugins.black", "autohooks.plugins.ruff.format", "autohooks.plugins.isort"]
+pre-commit = ["autohooks.plugins.black", "autohooks.plugins.ruff", "autohooks.plugins.isort"]
 
 [tool.isort]
 profile = "black"
@@ -15,3 +15,8 @@ known_first_party = [
     "fake_data_generators",
     "hl7_segment_generators"
 ]
+
+[tool.ruff]
+fix = true
+lint.select = ["F401"]
+line-length = 99
