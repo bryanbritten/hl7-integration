@@ -188,8 +188,12 @@ def get_msh_segment(message: bytes) -> Segment:
     return parse_segment(msg.msh.to_er7())
 
 
-def manually_extract_msh_segment(message: str) -> str:
-    segments = message.split("\r")
+def parse_msh_segment(segment: str) -> Segment:
+    return parse_segment(segment)
+
+
+def manually_extract_msh_segment(message: str, cr: str = "\r") -> str:
+    segments = message.split(cr)
     msh_candidates = [segment for segment in segments if segment.startswith("MSH")]
     if not any(msh_candidates):
         raise ParserError

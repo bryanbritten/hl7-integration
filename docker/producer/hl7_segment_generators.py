@@ -18,6 +18,7 @@ from fake_data_generators import (
     generate_patient_race,
     generate_patient_ssn,
     generate_random_date_time,
+    generate_uuid,
 )
 from faker import Faker
 
@@ -54,7 +55,7 @@ def generate_msh_segment(message_type: str) -> bytes:
             generate_random_date_time(),    # MSH-7
             "",                             # MSH-8
             message_type,                   # MSH-9
-            faker.uuid4(),                  # MSH-10
+            generate_uuid(),                # MSH-10
             "T",                            # MSH-11
             "2.5",                          # MSH-12
         ]
@@ -75,7 +76,7 @@ def generate_pid_segment() -> bytes:
             "PID",                              # PID-0
             "1",                                # PID-1
             "",                                 # PID-2
-            faker.uuid4(),                      # PID-3
+            generate_uuid(),                    # PID-3
             "",                                 # PID-4
             generate_patient_name(),            # PID-5
             faker.last_name(),                  # PID-6

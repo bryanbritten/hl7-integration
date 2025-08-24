@@ -241,3 +241,13 @@ def generate_gender() -> str:
     Returns: str - Either "M", "F", or "O"
     """
     return random.choice(["M", "F", "O"])
+
+
+@with_error_rate(error_rate=0.01)
+def generate_uuid() -> str:
+    """
+    Generates a random UUID value.
+
+    Returns: str - A random UUID
+    """
+    return faker.uuid4()

@@ -6,7 +6,11 @@ import time
 
 from confluent_kafka import Producer
 from dotenv import load_dotenv
-from hl7_helpers import MESSAGE_REGISTRY, get_msh_segment
+from hl7_helpers import (
+    MESSAGE_REGISTRY,
+    manually_extract_msh_segment,
+    parse_msh_segment,
+)
 from hl7_segment_generators import generate_segments
 from metrics import (
     messages_sent_total,
@@ -86,7 +90,12 @@ def send_message(message: bytes, message_type: str) -> None:
             messages_sent_total.labels(message_type=message_type).inc()
 
     while True:
-        msh = get_msh_segment(message)
+        # because the message can have errors intentionally introduced,
+        # parsing with the hl7apy library may fail. But the MSH segment
+        # will always be present, so we can confidently extract it and
+        # then parse it.
+        msh = manually_extract_msh_segment(message.decode("utf-8"), cr="\r")
+        msh = parse_msh_segment(msh)
         key = msh.msh_10.to_er7() or "some-random-key"
         try:
             producer.produce(
