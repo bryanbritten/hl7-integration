@@ -3,7 +3,7 @@ FROM python:3.11-slim
 WORKDIR /producer
 
 COPY docker/producer /producer
-COPY common/scripts/hl7_helpers.py /producer
+COPY common/scripts /producer
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends librdkafka-dev \
