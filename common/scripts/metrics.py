@@ -1,4 +1,4 @@
-from prometheus_client import Counter, Gauge, Histogram
+from prometheus_client import Counter
 
 messages_sent_total = Counter(
     "messages_sent_total", "Total number of HL7 messages sent", ["message_type"]
@@ -10,21 +10,18 @@ messages_received_total = Counter(
     ["message_type"],
 )
 
-messages_failed_validation_total = Counter(
-    "messages_failed_validated_total",
-    "Total number of received HL7 messages that failed validation.",
-    ["message_type"],
+hl7_acks_total = Counter(
+    "hl7_acks_total",
+    "Total number of HL7 ACK messages sent by the Consumer service.",
+    ["status"],
 )
-messages_failed_quality_checks_total = Counter(
-    "messages_failed_quality_checks_total",
-    "Total number of received HL7 messages that failed data quality checks.",
-    ["message_type"],
+
+message_failures_total = Counter(
+    "message_failures_total",
+    "Total number of HL7 messages that failed parsing, validation, or data quality checks",
+    ["reason", "service"],
 )
-messages_failed_parsing_total = Counter(
-    "messages_failed_parsing_total",
-    "Total number of Hl7 messages that failed to parse correctly.",
-    ["message_tyep"],
-)
+
 messages_passed_total = Counter(
     "messages_passed_total",
     "Total number of recieved HL7 messages that passed validation and all data quality checks",
