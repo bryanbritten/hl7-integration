@@ -98,7 +98,8 @@ services:
       retries: 5
       start_period: 30s
   validator:
-    profiles: [ "fhir", "transformer", "validator" ]
+    #profiles: [ "fhir", "transformer", "validator" ]
+    profiles: [ "disabled" ]
     build:
       context: .
       dockerfile: docker/validator/Dockerfile
@@ -115,7 +116,8 @@ services:
       retries: 5
       start_period: 30s
   fhir-converter:
-    profiles: [ "fhir" ]
+    #profiles: [ "fhir" ]
+    profiles: [ "disabled" ]
     build:
       context: ./docker/fhir-converter
     container_name: fhir-converter
@@ -129,7 +131,8 @@ services:
       retries: 3
       start_period: 10s
   transformer:
-    profiles: [ "fhir", "transformer" ]
+    #profiles: [ "fhir", "transformer" ]
+    profiles: [ "disabled" ]
     build:
       context: .
       dockerfile: docker/transformer/Dockerfile
