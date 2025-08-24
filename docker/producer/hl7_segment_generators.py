@@ -161,9 +161,7 @@ def generate_segment(
     match segment_type:
         case "MSH":
             component_sep = DELIMITERS[0]
-            message_type = component_sep.join(
-                [message_type, trigger_event, message_structure]
-            )
+            message_type = component_sep.join([message_type, trigger_event, message_structure])
             return generate_msh_segment(message_type)
         case "EVN":
             return generate_evn_segment(trigger_event)
@@ -172,7 +170,7 @@ def generate_segment(
         case "PV1":
             return generate_pv1_segment()
         case _:
-            logger.warning(f"No generator defined for segment of type {segment_type}")
+            # too common to log right now
             return b""
 
 
@@ -202,9 +200,7 @@ def generate_segments(
 
         for _ in range(count):
             if is_group:
-                multi_segment_result = generate_segments(
-                    segment["segments"], message_structure
-                )
+                multi_segment_result = generate_segments(segment["segments"], message_structure)
                 if multi_segment_result:
                     generated_segments.append(multi_segment_result)
             else:
