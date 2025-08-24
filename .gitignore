@@ -1,2 +1,5 @@
-.DS_Store
 .env
+
+# Randomly-created files and directories
+.DS_Store
+__pycache__
