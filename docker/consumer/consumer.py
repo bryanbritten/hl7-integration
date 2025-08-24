@@ -21,7 +21,16 @@ TOPIC = "HL7"
 DLQ = "DLQ"
 
 
-def consume_messages(consumer: Consumer) -> None:
+def main() -> None:
+    consumer = Consumer(
+        {
+            "bootstrap.servers": KAFKA_BROKERS,
+            "group.id": "hl7-consumers",
+            "auto.offset.reset": "earliest",
+        }
+    )
+    consumer.subscribe([TOPIC])
+
     while True:
         msg = consumer.poll(timeout=10.0)
         logger.info("Message received")
@@ -44,18 +53,6 @@ def consume_messages(consumer: Consumer) -> None:
         messages_received_total.labels(message_type=message_type).inc()
         process_message(message)
         consumer.commit(message=msg, asynchronous=False)
-
-
-def main() -> None:
-    consumer = Consumer(
-        {
-            "bootstrap.servers": KAFKA_BROKERS,
-            "group.id": "hl7-consumers",
-            "auto.offset.reset": "earliest",
-        }
-    )
-    consumer.subscribe([TOPIC])
-    consume_messages(consumer)
 
 
 if __name__ == "__main__":
