@@ -39,9 +39,7 @@ def convert_hl7_to_fhir(message: bytes, message_type: str) -> dict[str, Any]:
     response = requests.post(URL, json=data)
 
     if response.status_code != 200:
-        logger.error(
-            f"Received status code {response.status_code} from FHIR Converter API"
-        )
+        logger.error(f"Received status code {response.status_code} from FHIR Converter API")
         return {}
 
     return response.json()
@@ -51,17 +49,16 @@ def main() -> None:
     while True:
         key, message = get_message_from_s3(MINIO_SILVER_BUCKET)
         if not message:
+            logger.info(f"Failed to find new messages. Checking again in {POLL_INTERVAL} seconds.")
             time.sleep(POLL_INTERVAL)
             continue
 
+        # at this stage in the pipeline, the messages have been validated
+        # so we can assume all fields are present and valid
         msh_segment = get_msh_segment(message)
         message_type = msh_segment.msh_9.msh_9_1.to_er7()
         trigger_event = msh_segment.msh_9.msh_9_2.to_er7()
         message_structure = msh_segment.msh_9.msh_9_3.to_er7()
-
-        if not message_type:
-            logger.error(f"Failed to identify message type: {key}")
-            continue
 
         messages_fhir_conversion_attempts.labels(message_type=message_structure).inc()
         fhir_data = convert_hl7_to_fhir(message=message, message_type=message_structure)
@@ -103,9 +100,7 @@ def main() -> None:
                 content_type="application/json",
             )
             logger.info("Successfully converted HL7 message to FHIR")
-            messages_fhir_conversion_successes.labels(
-                message_type=message_structure
-            ).inc()
+            messages_fhir_conversion_successes.labels(message_type=message_structure).inc()
 
         move_message_to_processed(
             bucket=MINIO_SILVER_BUCKET,

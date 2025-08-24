@@ -6,9 +6,7 @@ from dotenv import load_dotenv
 from helpers import process_message
 from prometheus_client import start_http_server
 
-from metrics import (
-    messages_received_total,
-)
+from metrics import messages_received_total
 
 logging.basicConfig(
     level=logging.INFO,
