@@ -1,14 +1,13 @@
-import json
 import logging
 import time
 
+from kafka_helpers import generate_dlq_headers, send_to_topic
 from prometheus_client import start_http_server
 
 from metrics import message_failures_total, messages_passed_total
 from quality_assurance import ADTA01QualityChecker
 from s3_helpers import (
     MINIO_BRONZE_BUCKET,
-    MINIO_DEADLETTER_BUCKET,
     MINIO_SILVER_BUCKET,
     POLL_INTERVAL,
     get_message_from_s3,
@@ -35,63 +34,51 @@ def main() -> None:
         validator = HL7Validator(message)
         checker = ADTA01QualityChecker(validator.parsed_message)
         issues = checker.run_all_checks()
-
-        message_type = validator.parsed_message.msh.msh_9.msh_9_1.to_er7() or "UNK"
-        trigger_event = validator.parsed_message.msh.msh_9.msh_9_2.to_er7() or "UNK"
         message_structure = validator.parsed_message.msh.msh_9.msh_9_3.to_er7() or "UNK_UNK"
 
         if not validator.message_is_valid():
-            deadletter_key = key.replace(
-                f"unprocessed/{message_type}/{trigger_event}",
-                f"{message_type}/{trigger_event}/messages",
-            )
-            write_data_to_s3(
-                bucket=MINIO_DEADLETTER_BUCKET,
-                key=deadletter_key,
-                body=message,
-            )
-
             if not validator.has_required_segments():
-                logger.error(f"Message does not contain required segments: {key}")
+                error_message = "Message does not contain required segments"
                 message_failures_total.labels(
                     reason="Missing Required Segment", element="Unknown", service="validation"
                 )
             elif not validator.all_segments_are_valid():
-                logger.error(f"Message contains invalid segment(s): {key}")
+                error_message = "Message contains invalid segment(s)"
                 message_failures_total.labels(
                     reason="Invalid Segment", element="Unknown", service="validation"
                 )
             elif not validator.segment_cardinality_is_valid():
-                logger.error(f"Message contains invalid repeated segments: {key}")
+                error_message = "Message contains invalid repeated segments"
                 message_failures_total.labels(
                     reason="Invalid Segment Cardinality", element="Unknown", service="validation"
                 )
-        elif len(issues) > 0:
-            deadletter_key = key.replace(
-                f"unprocessed/{message_type}/{trigger_event}",
-                f"{message_type}/{trigger_event}/messages",
-            )
-            issues_key = key.replace(
-                f"unprocessed/{message_type}/{trigger_event}",
-                f"{message_type}/{trigger_event}/issues",
-            ).replace(".hl7", "-issues.json")
+            else:
+                error_message = "Message validation failed for an unknown reason"
+                message_failures_total.labels(
+                    reason="Unknown", element="Unknown", service="validation"
+                )
 
-            logger.error(f"Message failed data quality checks. See {issues_key} for details")
+            logger.error(f"{error_message}: {key}")
+            headers = generate_dlq_headers(
+                msg_key=key,
+                error_type="validation",
+                error_message=error_message,
+            )
+            send_to_topic(message, "DLQ", headers)
+        elif len(issues) > 0:
+            error_message = "Message failed data quality checks"
             message_failures_total.labels(
                 reason="Failed Data Quality Checks", element="Unknown", service="validation"
             ).inc()
 
-            write_data_to_s3(
-                bucket=MINIO_DEADLETTER_BUCKET,
-                key=deadletter_key,
-                body=message,
+            logger.error(error_message)
+            headers = generate_dlq_headers(
+                msg_key=key,
+                error_type="quality",
+                error_message=error_message,
+                issues=issues,
             )
-            write_data_to_s3(
-                bucket=MINIO_DEADLETTER_BUCKET,
-                key=issues_key,
-                body=json.dumps(issues).encode("utf-8"),
-                content_type="application/json",
-            )
+            send_to_topic(message, "DLQ", headers)
         else:
             write_data_to_s3(
                 bucket=MINIO_SILVER_BUCKET,

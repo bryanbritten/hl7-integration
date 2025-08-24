@@ -1,7 +1,8 @@
 import logging
 import os
+import time
 
-from confluent_kafka import Consumer, KafkaError
+from confluent_kafka import Consumer, KafkaError, TopicPartition
 from dotenv import load_dotenv
 from helpers import process_message
 from prometheus_client import start_http_server
@@ -27,6 +28,7 @@ def main() -> None:
             "bootstrap.servers": KAFKA_BROKERS,
             "group.id": "hl7-consumers",
             "auto.offset.reset": "earliest",
+            "enable.auto.commit": False,
         }
     )
     consumer.subscribe([TOPIC])
@@ -51,8 +53,21 @@ def main() -> None:
             None,
         )
         messages_received_total.labels(message_type=message_type).inc()
-        process_message(message)
-        consumer.commit(message=msg, asynchronous=False)
+
+        try:
+            process_message(message)
+            consumer.commit(message=msg)
+        except Exception as e:
+            logger.error(f"Processing failed. Not committing offset. Details: {e}")
+
+            # "rewind" the partition so that it sticks on the broken message
+            # this will cause this consumer to freeze on that message causing
+            # an alert so that it can be fixed.
+            # TODO: Determine what metric makes sense here
+            tp = TopicPartition(msg.topic(), msg.partition(), msg.offset())
+            consumer.seek(tp)
+            time.sleep(1.0)
+            continue
 
 
 if __name__ == "__main__":
