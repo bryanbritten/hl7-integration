@@ -47,7 +47,7 @@ def generate_dlq_headers(
     return headers
 
 
-def send_to_topic(
+def write_to_topic(
     message: bytes,
     topic: str,
     headers: Optional[list[tuple[str, str]]] = [],

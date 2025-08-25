@@ -4,7 +4,7 @@ from typing import Optional
 
 from dotenv import load_dotenv
 from hl7apy.exceptions import ParserError
-from kafka_helpers import generate_dlq_headers, send_to_topic
+from kafka_helpers import generate_dlq_headers, write_to_topic
 
 from hl7_helpers import (
     generate_empty_msh_segment,
@@ -110,10 +110,10 @@ def handle_error(
     # The message would be manually reviewed so that internal changes could be made
     # if appropriate and the message could be reprocessed. An ACK would be sent after
     # the message was reprocessed.
-    send_to_topic(ack, "ACKS")
+    write_to_topic(ack, "ACKS")
     hl7_acks_total.labels(status="AE").inc()
 
-    send_to_topic(message, "DLQ", dlq_headers)
+    write_to_topic(message, "DLQ", dlq_headers)
 
 
 def process_message(message: bytes) -> None:
@@ -170,5 +170,5 @@ def process_message(message: bytes) -> None:
         separator=separator,
         message_control_id=message_control_id,
     )
-    send_to_topic(ack, "ACKS")
+    write_to_topic(ack, "ACKS")
     hl7_acks_total.labels(status="AA").inc()
