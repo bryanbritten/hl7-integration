@@ -72,21 +72,6 @@ class HL7Validator:
             raise ValidationError(f"Schema not defined for message type: {self.message_type}")
         return message_schema
 
-    def validate_or_raise(self) -> None:
-        missing = self.get_missing_required_segments()
-        if missing:
-            raise ValidationError(f"Missing required segments: {', '.join(missing)}")
-
-        invalid = self.get_invalid_segments()
-        if invalid:
-            raise ValidationError(
-                f"Invalid segments for {self.message_type}: {', '.join(invalid)}"
-            )
-
-        violations = self.get_segment_cardinality_violations()
-        if violations:
-            raise ValidationError(f"Cardinality violations: {', '.join(violations)}")
-
     def get_missing_required_segments(self) -> list[str]:
         """
         Iterates through the required segments of an HL7 message, as defined by the message
@@ -434,3 +419,16 @@ def generate_empty_msh_segment(trigger_event: str) -> str:
     m = Message("ADT_A01")
     m.msh.msh_10 = f"ACK^{trigger_event}"
     return m.msh.to_er7()
+
+
+def get_message_type(message: Message) -> str:
+    msg_type = message.msh.msh_9.msh_9_3.value  # type: ignore
+    if msg_type:
+        return msg_type
+
+    msh_9_1 = message.msh.msh_9.msh_9_1.value  # type: ignore
+    msh_9_2 = message.msh.msh_9.msh_9_2.value  # type: ignore
+    if msh_9_1 and msh_9_2:
+        return f"{msh_9_1}_{msh_9_2}"
+    else:
+        return ""

@@ -18,8 +18,8 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 KAFKA_BROKERS = os.environ["KAFKA_BROKERS"]
-TOPIC = "HL7"
-DLQ = "DLQ"
+READ_TOPIC = "hl7.ingest"
+DLQ_TOPIC = "DLQ"
 
 
 def main() -> None:
@@ -31,7 +31,7 @@ def main() -> None:
             "enable.auto.commit": False,
         }
     )
-    consumer.subscribe([TOPIC])
+    consumer.subscribe([READ_TOPIC])
 
     while True:
         msg = consumer.poll(timeout=10.0)
@@ -50,12 +50,12 @@ def main() -> None:
         message = msg.value()
         message_type = next(
             (v.decode("utf-8") for k, v in msg.headers() if k == "hl7.message_type"),
-            None,
+            "ADT_A01",  # hl7.message_type will always be populated, so this default never triggers
         )
         messages_received_total.labels(message_type=message_type).inc()
 
         try:
-            process_message(message)
+            process_message(message, message_type)
             consumer.commit(message=msg)
         except Exception as e:
             logger.exception(f"Processing failed. Not committing offset. Details: {e}")
@@ -72,5 +72,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     start_http_server(8000)
-    logger.info(f"Consumer service starting. Brokers: {KAFKA_BROKERS} Topic: {TOPIC}")
+    logger.info(f"Consumer service starting. Brokers: {KAFKA_BROKERS} Topic: {READ_TOPIC}")
     main()

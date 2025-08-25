@@ -1,15 +1,17 @@
+import json
 import logging
 from datetime import datetime, timezone
 from typing import Optional
 
 from dotenv import load_dotenv
+from hl7apy.core import Message
 from hl7apy.exceptions import ParserError
 from kafka_helpers import generate_dlq_headers, write_to_topic
 
 from hl7_helpers import (
-    generate_empty_msh_segment,
-    get_msh_segment,
-    manually_extract_msh_segment,
+    HL7Parser,
+    HL7Validator,
+    ValidationError,
 )
 from metrics import hl7_acks_total, message_failures_total
 from s3_helpers import MINIO_BRONZE_BUCKET, write_data_to_s3
@@ -25,14 +27,16 @@ load_dotenv()
 
 def build_ack(
     acknowledgement_code: str,
-    separator: str,
-    msh_segment: str,
-    message_control_id: str,
+    message: Message,
     error_message: Optional[str] = None,
 ) -> bytes:
     START = b"\x0b"
     END = b"\x1c"
     CR = b"\x0d"
+
+    separator = message.msh.msh_1.to_er7()  # type: ignore
+    message_control_id = message.msh.msh_10.to_er7()  # type: ignore
+    msh_segment = message.msh.to_er7()
 
     msa_segment = separator.join(
         # error_message is the only element in the list that will ever be None
@@ -45,130 +49,134 @@ def build_ack(
 
 def handle_error(
     e: Exception,
-    message: bytes,
-    separator: Optional[str] = None,
-    msh_segment: Optional[str] = None,
-    message_control_id: Optional[str] = None,
+    message: Optional[Message],
 ) -> None:
-    dlq_headers = []
+    """
+    This method is responsible for identifying the type of error that occurred and
+    sending an ACK message back with information about what went wrong as well as
+    writing to the Kafka Dead Letter Queue for manual review.
 
-    # if the MSH segment is None then the hl7apy parser and the custom extraction failed.
-    if msh_segment is None:
-        error_message = "Failed to extract MSH segment."
-        logger.exception(f"{error_message}: {str(e)}")
+    The errors are handled in the order in which they are most likely to occur.
+    """
 
-        dlq_headers = generate_dlq_headers(
-            error_stage="ingestion",
-            error_message=error_message,
-        )
-
-        message_failures_total.labels(
-            reason="Missing Required Segment", element="MSH", service="consumer"
-        ).inc()
-    # if the message_control_id is None then one of the following two things happened:
-    #   1. The message was successfully parsed by the `hl7apy` library and the MSH-10
-    #      field was empty.
-    #   2. The MSH segment was extracted via custom logic and either the MSH segment is
-    #      malformed or the MSH-10 field is missing.
-    elif message_control_id is None:
-        error_message = "MSH-10 is required but was not found."
-        logger.exception(f"{error_message}: {str(e)}")
-
-        dlq_headers = generate_dlq_headers(
-            error_stage="ingestion",
-            error_message=error_message,
-        )
-
-        message_failures_total.labels(
-            reason="Missing Field", element="MSH-10", service="consumer"
-        ).inc()
-    # if the message was received, the MSH header was parsed, and MSH-10 was not empty,
-    # then something unidentified occurred.
+    if isinstance(e, ParserError):
+        error_message = f"Failed to parse message: {e}"
+    elif isinstance(e, ValidationError):
+        error_message = f"Message failed validation: {e}"
     else:
-        error_message = "The message could not be processed."
-        logger.exception(f"{error_message}: {str(e)}")
+        error_message = f"Unexpected error occurred: {e}"
 
-        dlq_headers = generate_dlq_headers(
-            error_stage="ingestion",
-            error_message=error_message,
-        )
-
-        message_failures_total.labels(
-            reason="Unknown", element="Unknown", service="consumer"
-        ).inc()
-
-    ack = build_ack(
-        "AE",
-        separator or "|",
-        msh_segment or generate_empty_msh_segment(),
-        message_control_id or "<ERROR>",
-        error_message or None,
+    dlq_headers = generate_dlq_headers(
+        error_stage="ingestion",
+        error_message=error_message,
     )
 
-    # ACK messages are sent only for demonstrative purposes.
-    # In production, an ACK would likely not be sent automatically at this point.
-    # The message would be manually reviewed so that internal changes could be made
-    # if appropriate and the message could be reprocessed. An ACK would be sent after
-    # the message was reprocessed.
-    write_to_topic(ack, "ACKS")
-    hl7_acks_total.labels(status="AE").inc()
+    # if the message failed parsing, automatically sending an ACK doesn't make sense
+    # because there's no Message Control ID to match
+    if message:
+        ack = build_ack("AE", message, error_message)
+
+        # ACK messages are sent only for demonstrative purposes.
+        # In production, an ACK would likely not be sent automatically at this point.
+        # The message would be manually reviewed so that internal changes could be made
+        # if appropriate and the message could be reprocessed. An ACK would be sent after
+        # the message was reprocessed.
+        write_to_topic(ack, "ACKS")
+        hl7_acks_total.labels(status="AE").inc()
 
     write_to_topic(message, "DLQ", dlq_headers)
 
 
-def process_message(message: bytes) -> None:
+def record_validation_metrics(
+    message_type: str,
+    message_control_id: Optional[str] = None,
+    missing_segments: Optional[list[str]] = [],
+    invalid_segments: Optional[list[str]] = [],
+    violating_segments: Optional[list[str]] = [],
+) -> None:
+    if missing_segments:
+        details = "Missing Required Segments"
+    elif invalid_segments:
+        details = "Invalid Segments"
+    elif violating_segments:
+        details = "Invalid Segment Cardinality"
+    elif message_control_id is None:
+        details = "Missing MSH-10 Field"
+    else:
+        details = "Unexpected Error"
+
+    message_failures_total.labels(
+        type="validation",
+        details=details,
+        stage="ingestion",
+        message_type=message_type,
+    )
+
+
+def process_message(message: bytes, message_type: str) -> None:
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
-    # initialize variables used in building the ACK message
-    msh_segment_str = separator = message_control_id = None
+    # initialize variables used in sending an ACK message
+    parsed_message = None
+    message_control_id = None
+    # initialize validation metrics
+    missing_segments = []
+    invalid_segments = []
+    violating_segments = []
 
     try:
-        msh_segment = get_msh_segment(message)
-        separator = msh_segment.msh_1.to_er7()
-        message_type = msh_segment.msh_9.msh_9_1.to_er7()
-        trigger_event = msh_segment.msh_9.msh_9_2.to_er7()
-        message_control_id = msh_segment.msh_10.to_er7()
-        msh_segment_str = msh_segment.to_er7()
+        parser = HL7Parser()
+        parsed_message = parser.parse(message)
 
-        if not message_control_id or not message_type or not trigger_event:
-            message_control_id = message_control_id or None
-            raise ValueError("No valid MSH-9 and/or MSH-10 field was found.")
+        message_control_id = parsed_message.msh.msh_10.value
+        if not message_control_id:
+            raise ValidationError("Failed to find valid MSH-10 value")
 
-    except ParserError:
-        try:
-            logger.warning("Failed to automatically extract MSH segment, attempting it manually")
+        validator = HL7Validator(message, message_type)
+        missing_segments = validator.get_missing_required_segments()
+        invalid_segments = validator.get_invalid_segments()
+        violating_segments = validator.get_segment_cardinality_violations()
 
-            msh_segment_str = manually_extract_msh_segment(message.decode("utf-8"))
-            if len(msh_segment_str) < 4:
-                msh_segment = None
-                raise ParserError("No valid MSH segment found.")
-
-            separator = msh_segment_str[3]
-            fields = msh_segment_str.split(separator)
-            if len(fields) < 10:
-                message_control_id = None
-                raise ValueError("No valid MSH-9 and/or MSH-10 field was found.")
-
-            message_type, trigger_event, _ = fields[8].split("^")
-            message_control_id = fields[9]
-        except (ParserError, ValueError) as e:
-            handle_error(e, message, separator, msh_segment_str, message_control_id)
-            return
-    except ValueError as e:
-        handle_error(e, message, separator, msh_segment_str, message_control_id)
+        if missing_segments or invalid_segments or violating_segments:
+            bad_segments = {
+                "missing": ",".join(missing_segments),
+                "invalid": ",".join(invalid_segments),
+                "violating": ",".join(violating_segments),
+            }
+            raise ValidationError(
+                f"Message contains erroneous segments: {json.dumps(bad_segments)}"
+            )
+    except ParserError as pe:
+        handle_error(pe, parsed_message)
+        message_failures_total.labels(
+            type="parsing",
+            details="Failed to Parse Message",
+            stage="ingestion",
+            message_type=message_type,
+        ).inc()
+        return
+    except ValidationError as ve:
+        handle_error(ve, parsed_message)
+        record_validation_metrics(
+            message_type,
+            message_control_id,
+            missing_segments,
+            invalid_segments,
+            violating_segments,
+        )
+        return
+    except Exception as e:
+        handle_error(e, parsed_message)
         return
 
-    key = f"unprocessed/{message_type}/{trigger_event}/{timestamp}.hl7"
+    ack = build_ack("AA", parsed_message)
+    write_to_topic(ack, "ACKS")
+    hl7_acks_total.labels(status="AA").inc()
+    write_to_topic(parsed_message, "hl7.accepted")
+
+    # write raw message to S3 for future processing if needed
+    key = f"{message_type}/{timestamp}.hl7"
     write_data_to_s3(
         bucket=MINIO_BRONZE_BUCKET,
         key=key,
         body=message,
     )
-
-    ack = build_ack(
-        "AA",
-        msh_segment=msh_segment_str,
-        separator=separator,
-        message_control_id=message_control_id,
-    )
-    write_to_topic(ack, "ACKS")
-    hl7_acks_total.labels(status="AA").inc()
