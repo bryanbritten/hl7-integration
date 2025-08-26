@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-TOPIC = "HL7"
+WRITE_TOPIC = "hl7.ingest"
 KAFKA_BROKERS = os.environ["KAFKA_BROKERS"]
 MESSAGE_TYPES = [
     "ADT_A01",
@@ -94,7 +94,7 @@ def send_message(message: bytes, message_type: str) -> None:
         key = msh.msh_10.to_er7() or "some-random-key"
         try:
             producer.produce(
-                topic=TOPIC,
+                topic=WRITE_TOPIC,
                 value=message,
                 key=key,
                 headers=[("hl7.message_type", message_type.encode("utf-8"))],
@@ -120,5 +120,5 @@ def main():
 
 if __name__ == "__main__":
     start_http_server(8000)
-    logger.info(f"Producer starting. Brokers: {KAFKA_BROKERS} Topic: {TOPIC}")
+    logger.info(f"Producer starting. Brokers: {KAFKA_BROKERS} Topic: {WRITE_TOPIC}")
     main()
