@@ -37,7 +37,6 @@ def main() -> None:
 
     while True:
         msg = consumer.poll(timeout=10.0)
-        logger.info("Message received")
 
         if msg is None:
             continue
