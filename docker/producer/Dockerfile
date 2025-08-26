@@ -10,6 +10,4 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir confluent-kafka faker hl7apy prometheus-client python-dotenv
 
-EXPOSE 8000
-
 CMD ["python", "producer.py"]
