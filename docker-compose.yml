@@ -150,8 +150,12 @@ services:
     env_file:
       - .env
     depends_on:
-      - minio
-      - fhir-converter
+      minio:
+        condition: service_healthy
+      fhir-converter:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     restart: on-failure
     healthcheck:
       test: [ "CMD", "pgrep", "-f", "transformer.py" ]
