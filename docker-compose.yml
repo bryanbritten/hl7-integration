@@ -30,6 +30,15 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+  kafka-init:
+    build:
+      context: ./docker/broker/kafka
+    depends_on:
+      kafka:
+        condition: service_healthy
+    volumes:
+      - ./docker/broker/kafka/init-topics.sh:/init-topics.sh
+    entrypoint: [ "/bin/bash", "init-topics.sh" ]
   minio:
     build:
       context: ./docker/storage/minio
