@@ -49,7 +49,8 @@ def build_ack(
 
 def handle_error(
     e: Exception,
-    message: Optional[Message],
+    raw_message: bytes,
+    parsed_message: Optional[Message],
     ack_topic: str,
     dlq_topic: str,
 ) -> None:
@@ -75,8 +76,8 @@ def handle_error(
 
     # if the message failed parsing, automatically sending an ACK doesn't make sense
     # because there's no Message Control ID to match
-    if message:
-        ack = build_ack("AE", message, error_message)
+    if parsed_message:
+        ack = build_ack("AE", parsed_message, error_message)
 
         # ACK messages are sent only for demonstrative purposes.
         # In production, an ACK would likely not be sent automatically at this point.
@@ -86,7 +87,7 @@ def handle_error(
         write_to_topic(ack, ack_topic)
         hl7_acks_total.labels(status="AE").inc()
 
-    write_to_topic(message, dlq_topic, dlq_headers)
+    write_to_topic(raw_message, dlq_topic, dlq_headers)
 
 
 def record_validation_metrics(
@@ -139,7 +140,7 @@ def process_message(
         if not message_control_id:
             raise ValidationError("Failed to find valid MSH-10 value")
 
-        validator = HL7Validator(message, message_type)
+        validator = HL7Validator(parsed_message, message_type)
         missing_segments = validator.get_missing_required_segments()
         invalid_segments = validator.get_invalid_segments()
         violating_segments = validator.get_segment_cardinality_violations()
@@ -156,7 +157,8 @@ def process_message(
     except ParserError as pe:
         handle_error(
             e=pe,
-            message=parsed_message,
+            raw_message=message,
+            parsed_message=parsed_message,
             ack_topic=ack_topic,
             dlq_topic=dlq_topic,
         )
@@ -170,7 +172,8 @@ def process_message(
     except ValidationError as ve:
         handle_error(
             e=ve,
-            message=parsed_message,
+            raw_message=message,
+            parsed_message=parsed_message,
             ack_topic=ack_topic,
             dlq_topic=dlq_topic,
         )
@@ -185,7 +188,8 @@ def process_message(
     except Exception as e:
         handle_error(
             e=e,
-            message=parsed_message,
+            raw_message=message,
+            parsed_message=parsed_message,
             ack_topic=ack_topic,
             dlq_topic=dlq_topic,
         )
@@ -194,7 +198,7 @@ def process_message(
     ack = build_ack("AA", parsed_message)
     write_to_topic(ack, ack_topic)
     hl7_acks_total.labels(status="AA").inc()
-    write_to_topic(parsed_message, write_topic)
+    write_to_topic(message, write_topic)
 
     # write raw message to S3 for future processing if needed
     key = f"{message_type}/{timestamp}.hl7"
