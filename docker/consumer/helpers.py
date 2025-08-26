@@ -50,6 +50,8 @@ def build_ack(
 def handle_error(
     e: Exception,
     message: Optional[Message],
+    ack_topic: str,
+    dlq_topic: str,
 ) -> None:
     """
     This method is responsible for identifying the type of error that occurred and
@@ -81,10 +83,10 @@ def handle_error(
         # The message would be manually reviewed so that internal changes could be made
         # if appropriate and the message could be reprocessed. An ACK would be sent after
         # the message was reprocessed.
-        write_to_topic(ack, "ACKS")
+        write_to_topic(ack, ack_topic)
         hl7_acks_total.labels(status="AE").inc()
 
-    write_to_topic(message, "DLQ", dlq_headers)
+    write_to_topic(message, dlq_topic, dlq_headers)
 
 
 def record_validation_metrics(
@@ -113,7 +115,13 @@ def record_validation_metrics(
     )
 
 
-def process_message(message: bytes, message_type: str) -> None:
+def process_message(
+    message: bytes,
+    message_type: str,
+    write_topic: str,
+    ack_topic: str,
+    dlq_topic: str,
+) -> None:
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
     # initialize variables used in sending an ACK message
     parsed_message = None
@@ -146,7 +154,12 @@ def process_message(message: bytes, message_type: str) -> None:
                 f"Message contains erroneous segments: {json.dumps(bad_segments)}"
             )
     except ParserError as pe:
-        handle_error(pe, parsed_message)
+        handle_error(
+            e=pe,
+            message=parsed_message,
+            ack_topic=ack_topic,
+            dlq_topic=dlq_topic,
+        )
         message_failures_total.labels(
             type="parsing",
             details="Failed to Parse Message",
@@ -155,7 +168,12 @@ def process_message(message: bytes, message_type: str) -> None:
         ).inc()
         return
     except ValidationError as ve:
-        handle_error(ve, parsed_message)
+        handle_error(
+            e=ve,
+            message=parsed_message,
+            ack_topic=ack_topic,
+            dlq_topic=dlq_topic,
+        )
         record_validation_metrics(
             message_type,
             message_control_id,
@@ -165,13 +183,18 @@ def process_message(message: bytes, message_type: str) -> None:
         )
         return
     except Exception as e:
-        handle_error(e, parsed_message)
+        handle_error(
+            e=e,
+            message=parsed_message,
+            ack_topic=ack_topic,
+            dlq_topic=dlq_topic,
+        )
         return
 
     ack = build_ack("AA", parsed_message)
-    write_to_topic(ack, "ACKS")
+    write_to_topic(ack, ack_topic)
     hl7_acks_total.labels(status="AA").inc()
-    write_to_topic(parsed_message, "hl7.accepted")
+    write_to_topic(parsed_message, write_topic)
 
     # write raw message to S3 for future processing if needed
     key = f"{message_type}/{timestamp}.hl7"

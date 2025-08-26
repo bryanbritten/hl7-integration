@@ -19,6 +19,8 @@ load_dotenv()
 
 KAFKA_BROKERS = os.environ["KAFKA_BROKERS"]
 READ_TOPIC = "hl7.ingest"
+WRITE_TOPIC = "hl7.accepted"
+ACK_TOPIC = "ACKS"
 DLQ_TOPIC = "DLQ"
 
 
@@ -55,7 +57,13 @@ def main() -> None:
         messages_received_total.labels(message_type=message_type).inc()
 
         try:
-            process_message(message, message_type)
+            process_message(
+                message,
+                message_type,
+                write_topic=WRITE_TOPIC,
+                ack_topic=ACK_TOPIC,
+                dlq_topic=DLQ_TOPIC,
+            )
             consumer.commit(message=msg)
         except Exception as e:
             logger.exception(f"Processing failed. Not committing offset. Details: {e}")
