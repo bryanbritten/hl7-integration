@@ -114,7 +114,10 @@ services:
     env_file:
       - .env
     depends_on:
-      - minio
+      minio:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     restart: on-failure
     healthcheck:
       test: [ "CMD", "pgrep", "-f", "validator.py" ]
