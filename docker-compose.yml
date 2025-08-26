@@ -64,7 +64,7 @@ services:
       - .env
     depends_on:
       minio:
-        condition: service_started
+        condition: service_healthy
     restart: no
   producer:
     build:
