@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-WRITE_TOPIC = "hl7.ingest"
+WRITE_TOPIC = os.environ["PRODUCER_WRITE_TOPIC"]
 KAFKA_BROKERS = os.environ["KAFKA_BROKERS"]
 MESSAGE_TYPES = [
     "ADT_A01",

@@ -18,10 +18,10 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 KAFKA_BROKERS = os.environ["KAFKA_BROKERS"]
-READ_TOPIC = "hl7.ingest"
-WRITE_TOPIC = "hl7.accepted"
-ACK_TOPIC = "ACKS"
-DLQ_TOPIC = "DLQ"
+READ_TOPIC = os.environ["CONSUMER_READ_TOPIC"]
+WRITE_TOPIC = os.environ["CONSUMER_WRITE_TOPIC"]
+ACK_TOPIC = os.environ["ACK_TOPIC"]
+DLQ_TOPIC = os.environ["DLQ_TOPIC"]
 
 
 def main() -> None:
