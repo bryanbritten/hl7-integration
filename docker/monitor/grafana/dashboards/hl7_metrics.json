@@ -302,46 +302,12 @@
                 {
                     "disableTextWrap": false,
                     "editorMode": "code",
-                    "expr": "sum by (message_type) (rate(messages_failed_quality_checks_total[1m]))",
+                    "expr": "sum by (details) (rate(message_failures_total[1m]))",
                     "fullMetaSearch": false,
                     "includeNullMetadata": true,
                     "legendFormat": "__auto",
                     "range": true,
                     "refId": "A",
-                    "useBackend": false
-                },
-                {
-                    "datasource": {
-                        "type": "prometheus",
-                        "uid": "prometheus"
-                    },
-                    "disableTextWrap": false,
-                    "editorMode": "code",
-                    "expr": "sum by (message_type) (rate(messages_failed_validated_total[1m]))",
-                    "fullMetaSearch": false,
-                    "hide": false,
-                    "includeNullMetadata": true,
-                    "instant": false,
-                    "legendFormat": "__auto",
-                    "range": true,
-                    "refId": "B",
-                    "useBackend": false
-                },
-                {
-                    "datasource": {
-                        "type": "prometheus",
-                        "uid": "prometheus"
-                    },
-                    "disableTextWrap": false,
-                    "editorMode": "code",
-                    "expr": "sum by (message_type) (rate(messages_passed_total[1m]))",
-                    "fullMetaSearch": false,
-                    "hide": false,
-                    "includeNullMetadata": true,
-                    "instant": false,
-                    "legendFormat": "__auto",
-                    "range": true,
-                    "refId": "C",
                     "useBackend": false
                 }
             ],
