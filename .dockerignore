@@ -1,1 +1,4 @@
-Dockerfile
+docker/producer/Dockerfile
+docker/consumer/Dockerfile
+docker/transformer/Dockerfile
+docker/validator/Dockerfile
