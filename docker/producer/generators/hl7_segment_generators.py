@@ -3,8 +3,7 @@ import random
 from typing import Any
 
 from faker import Faker
-
-from fake_data_generators import (
+from generators.fake_data_generators import (
     generate_admission_type,
     generate_admit_source,
     generate_ambulatory_status,
