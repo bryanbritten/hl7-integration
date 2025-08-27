@@ -61,13 +61,14 @@ class HL7Parser:
 
 
 class HL7Validator:
-    def __init__(self, message: Message, message_type: str):
+    def __init__(self, message: Message, message_type: str, message_registry: dict[str, Any]):
         self.message = message
         self.message_type = message_type
+        self.message_registry = message_registry
         self.message_schema = self.get_message_schema()
 
     def get_message_schema(self) -> dict[str, Any]:
-        message_schema = MESSAGE_REGISTRY.get(self.message_type)
+        message_schema = self.message_registry.get(self.message_type)
         if not message_schema:
             raise ValidationError(f"Schema not defined for message type: {self.message_type}")
         return message_schema

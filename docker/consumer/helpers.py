@@ -8,6 +8,7 @@ from hl7apy.core import Message
 from hl7apy.exceptions import ParserError
 
 from common.helpers.hl7 import (
+    MESSAGE_REGISTRY,
     HL7Parser,
     HL7Validator,
     ValidationError,
@@ -140,7 +141,7 @@ def process_message(
         if not message_control_id:
             raise ValidationError("Failed to find valid MSH-10 value")
 
-        validator = HL7Validator(parsed_message, message_type)
+        validator = HL7Validator(parsed_message, message_type, MESSAGE_REGISTRY)
         missing_segments = validator.get_missing_required_segments()
         invalid_segments = validator.get_invalid_segments()
         violating_segments = validator.get_segment_cardinality_violations()
