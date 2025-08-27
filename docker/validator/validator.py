@@ -3,8 +3,6 @@ import time
 
 from kafka_helpers import generate_dlq_headers, send_to_topic
 from prometheus_client import start_http_server
-
-from metrics import message_failures_total, messages_passed_total
 from quality_assurance import ADTA01QualityChecker
 from s3_helpers import (
     MINIO_BRONZE_BUCKET,
@@ -15,6 +13,8 @@ from s3_helpers import (
     write_data_to_s3,
 )
 from validation import HL7Validator
+
+from metrics import message_failures_total, messages_passed_total
 
 logging.basicConfig(
     level=logging.INFO,
@@ -34,7 +34,11 @@ def main() -> None:
         validator = HL7Validator(message)
         checker = ADTA01QualityChecker(validator.parsed_message)
         issues = checker.run_all_checks()
-        message_structure = validator.parsed_message.msh.msh_9.msh_9_3.to_er7() or "UNK_UNK"
+
+        if validator.parsed_message.msh.msh_9:
+            message_structure = validator.parsed_message.msh.msh_9.msh_9_3.to_er7()
+        else:
+            message_structure = "UNK_UNK"
 
         if not validator.message_is_valid():
             if not validator.has_required_segments():

@@ -97,7 +97,7 @@ def send_message(message: bytes, message_type: str) -> None:
         # then parse it.
         msh = manually_extract_msh_segment(message.decode("utf-8"), cr="\r")
         msh = parse_msh_segment(msh)
-        key = msh.msh_10.to_er7() or "some-random-key"
+        key = msh.msh_10.to_er7() if msh.msh_10 else "random-key"
         try:
             producer.produce(
                 topic=WRITE_TOPIC,

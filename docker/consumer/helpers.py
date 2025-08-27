@@ -136,7 +136,7 @@ def process_message(
         parser = HL7Parser()
         parsed_message = parser.parse(message)
 
-        message_control_id = parsed_message.msh.msh_10.value
+        message_control_id = parsed_message.msh.msh_10.value if parsed_message.msh.msh_10 else None
         if not message_control_id:
             raise ValidationError("Failed to find valid MSH-10 value")
 
