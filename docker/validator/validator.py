@@ -1,20 +1,14 @@
 import logging
+import os
 import time
 
-from kafka_helpers import generate_dlq_headers, send_to_topic
+from confluent_kafka import Consumer, KafkaError, TopicPartition
+from dotenv import load_dotenv
+from helpers import process_message
 from prometheus_client import start_http_server
-from quality_assurance import ADTA01QualityChecker
-from s3_helpers import (
-    MINIO_BRONZE_BUCKET,
-    MINIO_SILVER_BUCKET,
-    POLL_INTERVAL,
-    get_message_from_s3,
-    move_message_to_processed,
-    write_data_to_s3,
-)
-from validation import HL7Validator
 
-from metrics import message_failures_total, messages_passed_total
+load_dotenv()
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -22,82 +16,56 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+KAFKA_BROKERS = os.environ["KAFKA_BROKERS"]
+READ_TOPIC = os.environ["VALIDATOR_READ_TOPIC"]
+WRITE_TOPIC = os.environ["VALIDATOR_WRITE_TOPIC"]
+DLQ_TOPIC = os.environ["DLQ_TOPIC"]
+
 
 def main() -> None:
+    consumer = Consumer(
+        {
+            "bootstrap.servers": KAFKA_BROKERS,
+            "group.id": "hl7-validators",
+            "auto.offset.reset": "earliest",
+            "enable.auto.commit": False,
+        }
+    )
+    consumer.subscribe([READ_TOPIC])
+
     while True:
-        key, message = get_message_from_s3(MINIO_BRONZE_BUCKET)
-        if not message:
-            logger.info(f"Failed to find new messages. Checking again in {POLL_INTERVAL} seconds.")
-            time.sleep(POLL_INTERVAL)
+        msg = consumer.poll(timeout=10.0)
+
+        if msg is None:
             continue
 
-        validator = HL7Validator(message)
-        checker = ADTA01QualityChecker(validator.parsed_message)
-        issues = checker.run_all_checks()
-
-        if validator.parsed_message.msh.msh_9:
-            message_structure = validator.parsed_message.msh.msh_9.msh_9_3.to_er7()
-        else:
-            message_structure = "UNK_UNK"
-
-        if not validator.message_is_valid():
-            if not validator.has_required_segments():
-                error_message = "Message does not contain required segments"
-                message_failures_total.labels(
-                    reason="Missing Required Segment", element="Unknown", service="validation"
-                )
-            elif not validator.all_segments_are_valid():
-                error_message = "Message contains invalid segment(s)"
-                message_failures_total.labels(
-                    reason="Invalid Segment", element="Unknown", service="validation"
-                )
-            elif not validator.segment_cardinality_is_valid():
-                error_message = "Message contains invalid repeated segments"
-                message_failures_total.labels(
-                    reason="Invalid Segment Cardinality", element="Unknown", service="validation"
-                )
+        if msg.error():
+            if msg.error().code() == KafkaError._PARTITION_EOF:
+                continue
             else:
-                error_message = "Message validation failed for an unknown reason"
-                message_failures_total.labels(
-                    reason="Unknown", element="Unknown", service="validation"
-                )
+                logger.error(f"Consumer error: {msg.error()}")
+                continue
 
-            logger.error(f"{error_message}: {key}")
-            headers = generate_dlq_headers(
-                msg_key=key,
-                error_type="validation",
-                error_message=error_message,
-            )
-            send_to_topic(message, "DLQ", headers)
-        elif len(issues) > 0:
-            error_message = "Message failed data quality checks"
-            message_failures_total.labels(
-                reason="Failed Data Quality Checks", element="Unknown", service="validation"
-            ).inc()
-
-            logger.error(error_message)
-            headers = generate_dlq_headers(
-                msg_key=key,
-                error_type="quality",
-                error_message=error_message,
-                issues=issues,
-            )
-            send_to_topic(message, "DLQ", headers)
-        else:
-            write_data_to_s3(
-                bucket=MINIO_SILVER_BUCKET,
-                key=key,
-                body=message,
-            )
-            logger.info("Message successfully passed validation and quality checks")
-            messages_passed_total.labels(message_type=message_structure).inc()
-
-        # regardless of outcome, move the message into the processed directory in the Bronze bucket
-        move_message_to_processed(
-            bucket=MINIO_BRONZE_BUCKET,
-            source_key=key,
-            destination_key=key.replace("unprocessed", "processed"),  # type: ignore
+        message = msg.value()
+        message_type = next(
+            (v.decode("utf-8") for k, v in msg.headers() if k == "hl7.message_type"),
+            None,
         )
+
+        try:
+            process_message(message, message_type)
+            consumer.commit(message=msg)
+        except Exception as e:
+            logger.exception(f"Processing failed. Not committing offset. Details: {e}")
+
+            # "rewind" the partition so that it sticks on the broken message
+            # this will cause this consumer to freeze on that message causing
+            # an alert so that it can be fixed.
+            # TODO: Determine what metric makes sense here
+            tp = TopicPartition(msg.topic(), msg.partition(), msg.offset())
+            consumer.seek(tp)
+            time.sleep(1.0)
+            continue
 
 
 if __name__ == "__main__":
