@@ -4,7 +4,6 @@ from typing import Any
 
 from faker import Faker
 
-from decorators.error_rates import with_error_rate
 from generators.fake_data_generators import (
     generate_admission_type,
     generate_admit_source,
@@ -37,7 +36,6 @@ DELIMITERS = "^~\\&"
 CR = b"\x0d"
 
 
-@with_error_rate(error_rate=0.01)
 def generate_msh_segment(message_type: str) -> bytes:
     """
     Generates an MSH segment for HL7 messages.
@@ -191,14 +189,22 @@ def generate_segments(
         required = segment["required"]
         repeatable = segment["repeatable"]
 
+        # implements a 1% error rate for segments that are required or not repeatable
         if required and repeatable:
-            count = random.randint(1, 3)
+            # 0 = missing required segment; 1, 2, 3 = valid
+            count = random.choices([0, 1, 2, 3], weights=[0.01, 0.33, 0.33, 0.33])[0]
         elif required:
-            count = 1
+            # 0 = missing required segment; 1 = valid; 2 = invalid cardinality
+            count = random.choices([0, 1, 2], weights=[0.005, 0.99, 0.005])[0]
         elif repeatable:
             count = random.randint(0, 3)
         else:
-            count = 1 if random.random() < 0.5 else 0
+            # 0,1 = valid; 2 = invalid cardinality
+            count = random.choices([0, 1, 2], weights=[0.495, 0.495, 0.01])[0]
+
+        # override the count for the MSH segment
+        if identifier == "MSH":
+            count = 1
 
         for _ in range(count):
             if is_group:
