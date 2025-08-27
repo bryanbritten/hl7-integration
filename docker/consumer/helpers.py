@@ -113,7 +113,7 @@ def record_validation_metrics(
         details=details,
         stage="ingestion",
         message_type=message_type,
-    )
+    ).inc()
 
 
 def process_message(
