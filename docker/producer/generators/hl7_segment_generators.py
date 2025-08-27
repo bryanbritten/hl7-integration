@@ -3,6 +3,8 @@ import random
 from typing import Any
 
 from faker import Faker
+
+from decorators.error_rates import with_error_rate
 from generators.fake_data_generators import (
     generate_admission_type,
     generate_admit_source,
@@ -35,6 +37,7 @@ DELIMITERS = "^~\\&"
 CR = b"\x0d"
 
 
+@with_error_rate(error_rate=0.01)
 def generate_msh_segment(message_type: str) -> bytes:
     """
     Generates an MSH segment for HL7 messages.

@@ -50,7 +50,7 @@ def generate_dlq_headers(
 def write_to_topic(
     message: bytes,
     topic: str,
-    headers: Optional[list[tuple[str, str]]] = [],
+    headers: Optional[list[tuple[str, bytes]]] = [],
     timeout: float = 10.0,
 ) -> None:
     done = Event()

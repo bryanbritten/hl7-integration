@@ -6,15 +6,15 @@ import time
 
 from confluent_kafka import Producer
 from dotenv import load_dotenv
-from generators.hl7_segment_generators import generate_segments
 from prometheus_client import start_http_server
 
-from hl7_helpers import (
+from common.helpers.hl7 import (
     MESSAGE_REGISTRY,
     manually_extract_msh_segment,
     parse_msh_segment,
 )
-from metrics import messages_sent_total
+from common.metrics import messages_sent_total
+from generators.hl7_segment_generators import generate_segments
 
 logging.basicConfig(
     level=logging.INFO,
@@ -76,6 +76,12 @@ def build_message(message_type: str) -> bytes:
 def send_message(message: bytes, message_type: str) -> None:
     """
     Sends the HL7 message to the Kafka service.
+
+    NOTE: This process does not use the write_to_topic method defined
+    in common/helpers/kafka.py because the producer service is configured
+    to "fire and forget". The emphasis of this project is on analyzing
+    data issues that would arise on the consumer side of the data exchange
+    so no attempt is made to implement robustness on the producer service.
 
     message: bytes - The HL7 message to send.
     """

@@ -2,8 +2,8 @@ FROM python:3.11-slim
 
 WORKDIR /consumer
 
-COPY docker/consumer/ /consumer
-COPY common/scripts/ /consumer
+COPY docker/consumer /consumer
+COPY common /consumer/common
 
 RUN mkdir /messages
 RUN apt-get update \

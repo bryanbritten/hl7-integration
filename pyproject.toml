@@ -10,12 +10,9 @@ pre-commit = ["autohooks.plugins.black", "autohooks.plugins.ruff", "autohooks.pl
 profile = "black"
 known_first_party = [
     "metrics",
-    "hl7_helpers",
-    "s3_helpers",
-    "fake_data_generators",
-    "hl7_segment_generators",
-    "quality_assurance",
-    "validation",
+    "common",
+    "generators",
+    "decorators",
 ]
 
 [tool.ruff]
