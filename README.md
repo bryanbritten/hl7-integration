@@ -83,4 +83,4 @@ If this were a production environment, there are a few things that could/should 
 - ~~Add support for `ADT_A03` messages~~ (implemented as of [05dfe236](https://github.com/bryanbritten/hl7-integration/commit/05dfe236d967805fdb7199d2e18c0903c5f9d37e))
 
 
-![image of a Grafana dashboard with the four metrics defined above](common/img/grafana_dashboard.png)
+![image of a Grafana dashboard with the four metrics defined above](static/img/grafana_dashboard.png)
