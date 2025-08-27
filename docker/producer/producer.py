@@ -103,7 +103,7 @@ def send_message(message: bytes, message_type: str) -> None:
                 topic=WRITE_TOPIC,
                 value=message,
                 key=key,
-                headers=[("hl7.message_type", message_type.encode("utf-8"))],
+                headers=[("hl7.message.type", message_type.encode("utf-8"))],
                 callback=on_delivery,
             )
             break

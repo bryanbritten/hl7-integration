@@ -12,7 +12,7 @@ from common.helpers.hl7 import (
     HL7Validator,
     ValidationError,
 )
-from common.helpers.kafka import generate_dlq_headers, write_to_topic
+from common.helpers.kafka import generate_dlq_headers, to_header, write_to_topic
 from common.helpers.s3 import MINIO_BRONZE_BUCKET, write_data_to_s3
 from common.metrics import hl7_acks_total, message_failures_total
 
@@ -198,7 +198,12 @@ def process_message(
     ack = build_ack("AA", parsed_message)
     write_to_topic(ack, ack_topic)
     hl7_acks_total.labels(status="AA").inc()
-    write_to_topic(message, write_topic)
+
+    headers = [
+        to_header("hl7.message.type", message_type),
+        to_header("consumer.group", "hl7-consumers"),
+    ]
+    write_to_topic(message, write_topic, headers)
 
     # write raw message to S3 for future processing if needed
     key = f"{message_type}/{timestamp}.hl7"
