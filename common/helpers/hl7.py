@@ -1,37 +1,10 @@
-from dataclasses import dataclass
-from typing import Any, Callable, Literal
+from typing import Any
 
 from hl7apy.core import Message, Segment
 from hl7apy.exceptions import ParserError
 from hl7apy.parser import parse_message, parse_segment
 
-PLACEHOLDERS = {"test", "n/a", "null", "asdf", "unknown", ""}
-
-IssueType = Literal[
-    "rule",
-    "demographic",
-    "temporal",
-    "provider",
-    "header",
-    "structure",
-    "other",
-]
-
-
-@dataclass(frozen=True)
-class Issue:
-    type: IssueType
-    severity: int
-    message: str
-    field: str | None = None
-
-
-Rule = Callable[[Message], list[Issue]]
-
-
-class RuleError(Exception):
-    def __init__(self, message: str):
-        super().__init__(message)
+from common.rules import Issue, Rule
 
 
 class ValidationError(Exception):
