@@ -50,8 +50,8 @@ def main() -> None:
 
         message = msg.value()
         message_type = next(
-            (v.decode("utf-8") for k, v in msg.headers() if k == "hl7.message_type"),
-            "ADT_A01",  # hl7.message_type will always be populated, so this default never triggers
+            (v.decode("utf-8") for k, v in msg.headers() if k == "hl7.message.type"),
+            "UNK_UNK",
         )
         messages_received_total.labels(message_type=message_type).inc()
 
