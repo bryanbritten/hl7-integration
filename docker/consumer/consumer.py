@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 KAFKA_BROKERS = os.environ["KAFKA_BROKERS"]
+GROUP_ID = os.environ["CONSUMER_GROUP_ID"]
 READ_TOPIC = os.environ["CONSUMER_READ_TOPIC"]
 WRITE_TOPIC = os.environ["CONSUMER_WRITE_TOPIC"]
 ACK_TOPIC = os.environ["ACK_TOPIC"]
@@ -28,7 +29,7 @@ def main() -> None:
     consumer = Consumer(
         {
             "bootstrap.servers": KAFKA_BROKERS,
-            "group.id": "hl7-consumers",
+            "group.id": GROUP_ID,
             "auto.offset.reset": "earliest",
             "enable.auto.commit": False,
         }
