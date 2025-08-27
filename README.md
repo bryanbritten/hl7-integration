@@ -12,7 +12,7 @@ The pipeline is containerized using Docker. A container is created for each of t
 - `producer`: Generates a stream of dynamically generated `ADT_A01` and `ADT_A03` messages.  
 - `consumer`: Receives and stores the raw messages.
 - `storage`: Uses `minio` and `minio-client` containers to act as a proxy for AWS S3 storage.
-- `validator`: Reads and parses raw messages, validates message structure, and performs data quality checks.  
+- `qa`: Reads messages that have passed initial validation and performs additional data quality checks.  
 - `fhir-converter`: A containerized version of Microsoft's [FHIR Converter](https://github.com/microsoft/FHIR-Converter).  
 - `transformer`: Converts a validated message into the FHIR format using the `fhir-converter` service.  
 - `monitor`: Monitors the pipeline and aggregates performance metrics.
@@ -35,9 +35,9 @@ The `broker` service is a Kafka "cluster" consisting of a sinkgle broker. The to
 
 > NOTE: A production-level integration engine would have more brokers in the cluster, and would set the replication factor to a value higher than one. Additionally, the Kafka producers only wait for acknowledgement from the "Leader" partition (i.e. "acks=1"), but in production with a higher replication factor, this should be changed to `acks=-1` so that acknowledgement from all "Leader" and "Follower" partitions is required before moving on.
 
-### Validator
+### QA (Quality Assurance)
 
-The `validator` service reads from the "bronze" layer and validates the messages using the `hl7apy` library in Python. It then performs a series of data quality checks using the same library. If the validation and data quality checks all pass, the raw message is saved in a "silver" layer. Otherwise, the raw message is saved in a `deadletter` bucket for manual review. 
+The `qa` service reads from the `hl7.accepted` topic in the `broker` service and performs a series of data quality checks using a combination of the `hl7apy` library and custom logic. If the data quality checks all pass, the message is written to the `hl7.validated` topic. Otherwise, the message is written to the `DLQ` topic with the QA failures included in the headers for later inspection. 
 
 ### Storage
 

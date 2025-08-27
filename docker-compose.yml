@@ -108,13 +108,13 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-  validator:
-    #profiles: [ "fhir", "transformer", "validator" ]
+  qa:
+    #profiles: [ "fhir", "transformer", "qa" ]
     profiles: [ "disabled" ]
     build:
       context: .
       dockerfile: docker/validator/Dockerfile
-    container_name: validator
+    container_name: qa
     env_file:
       - .env
     depends_on:
@@ -124,7 +124,7 @@ services:
         condition: service_healthy
     restart: on-failure
     healthcheck:
-      test: [ "CMD", "pgrep", "-f", "validator.py" ]
+      test: [ "CMD", "pgrep", "-f", "qa.py" ]
       interval: 10s
       timeout: 5s
       retries: 5
