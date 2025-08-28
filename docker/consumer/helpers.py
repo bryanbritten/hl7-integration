@@ -8,7 +8,6 @@ from hl7apy.core import Message
 from hl7apy.exceptions import ParserError
 
 from common.helpers.hl7 import (
-    MESSAGE_REGISTRY,
     HL7Parser,
     HL7Validator,
     ValidationError,
@@ -16,6 +15,7 @@ from common.helpers.hl7 import (
 from common.helpers.kafka import generate_dlq_headers, to_header, write_to_topic
 from common.helpers.s3 import MINIO_BRONZE_BUCKET, write_data_to_s3
 from common.metrics import hl7_acks_total, message_failures_total
+from common.registries import HL7_SCHEMA_REGISTRY
 
 logging.basicConfig(
     level=logging.INFO,
@@ -141,7 +141,7 @@ def process_message(
         if not message_control_id:
             raise ValidationError("Failed to find valid MSH-10 value")
 
-        validator = HL7Validator(parsed_message, message_type, MESSAGE_REGISTRY)
+        validator = HL7Validator(parsed_message, message_type, HL7_SCHEMA_REGISTRY)
         missing_segments = validator.get_missing_required_segments()
         invalid_segments = validator.get_invalid_segments()
         violating_segments = validator.get_segment_cardinality_violations()
