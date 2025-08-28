@@ -16,7 +16,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-KAFKA_BROKERS = os.environ["QA_BROKERS"]
+KAFKA_BROKERS = os.environ["KAFKA_BROKERS"]
 GROUP_ID = os.environ["QA_GROUP_ID"]
 READ_TOPIC = os.environ["QA_READ_TOPIC"]
 WRITE_TOPIC = os.environ["QA_WRITE_TOPIC"]
