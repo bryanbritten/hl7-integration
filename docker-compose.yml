@@ -119,8 +119,12 @@ services:
     depends_on:
       minio:
         condition: service_healthy
+      minio-client:
+        condition: service_completed_successfully
       kafka:
         condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
     restart: on-failure
     healthcheck:
       test: [ "CMD", "pgrep", "-f", "qa.py" ]
