@@ -21,7 +21,6 @@ GROUP_ID = os.environ["QA_GROUP_ID"]
 READ_TOPIC = os.environ["QA_READ_TOPIC"]
 WRITE_TOPIC = os.environ["QA_WRITE_TOPIC"]
 DLQ_TOPIC = os.environ["DLQ_TOPIC"]
-RULES = os.environ["QA_RULES"]
 
 
 def main() -> None:
