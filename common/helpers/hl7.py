@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 
 from hl7apy.core import Message, Segment
 from hl7apy.exceptions import ParserError
@@ -244,3 +244,25 @@ def get_message_type(message: Message) -> str:
         return f"{msh_9_1}_{msh_9_2}"
     else:
         return ""
+
+
+def build_ack(
+    acknowledgement_code: str,
+    message: Message,
+    error_message: Optional[str] = None,
+) -> bytes:
+    START = b"\x0b"
+    END = b"\x1c"
+    CR = b"\x0d"
+
+    separator = message.msh.msh_1.to_er7()
+    message_control_id = message.msh.msh_10.to_er7()
+    msh_segment = message.msh.to_er7()
+
+    msa_segment = separator.join(
+        # error_message is the only element in the list that will ever be None
+        # so HL7 structure compliance is guaranteed.
+        filter(None, ["MSA", acknowledgement_code, message_control_id, error_message])
+    ).encode("utf-8")
+
+    return START + msh_segment.encode("utf-8") + CR + msa_segment + END + CR
