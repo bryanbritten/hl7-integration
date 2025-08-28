@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any
 
 from hl7apy.core import Message, Segment
 from hl7apy.exceptions import ParserError
@@ -197,23 +197,16 @@ class HL7Checker:
         result.rule = rule
         return result
 
-    def run_rules(
-        self, rules: list[str], return_results: bool = False
-    ) -> Optional[list[RuleResult]]:
-        issues = []
+    def run_rules(self, rules: list[str]) -> list[RuleResult]:
+        results = []
         for rule in rules:
             result = self.run_rule(rule)
-            issues.append(result)
-        self.issues.extend(issues)
+            results.append(result)
+        return results
 
-        if return_results:
-            return issues
-
-    def run_all_rules(self, return_results: bool = False) -> Optional[list[RuleResult]]:
+    def run_all_rules(self) -> list[RuleResult]:
         all_rules = list(self.rules.keys())
-        results = self.run_rules(all_rules)
-        if return_results:
-            return results
+        return self.run_rules(all_rules)
 
 
 def get_msh_segment(message: bytes) -> Segment:
