@@ -6,7 +6,13 @@ messages_sent_total = Counter(
 
 messages_received_total = Counter(
     "messages_received_total",
-    "Total number of HL7 messages received by the Consumer service.",
+    "Total number of HL7 messages received/processed by the Consumer service.",
+    ["message_type"],
+)
+
+messages_accepted_total = Counter(
+    "messages_accepted_total",
+    "Total number of HL7 messages that cleared the ingestion process in the Consumer service.",
     ["message_type"],
 )
 
@@ -14,12 +20,6 @@ hl7_acks_total = Counter(
     "hl7_acks_total",
     "Total number of HL7 ACK messages sent by the Consumer service.",
     ["status"],
-)
-
-validation_checks_total = Counter(
-    "validation_checks_total",
-    "Total number of HL7 messages that have been processed by the Consumer service.",
-    ["message_type"],
 )
 
 validation_failed_total = Counter(
