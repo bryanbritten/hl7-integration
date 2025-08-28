@@ -20,7 +20,7 @@ The pipeline is written almost entirely in Python and is containerized using Doc
 
 ### Architecture - 3rd-Party Services
 
-##### Broker
+#### Broker
 
 The `broker` service is a Kafka "cluster" consisting of a sinkgle broker. The topics include `hl7.ingest`, `hl7.accepted`, `hl7.validated`, `DLQ`, and `ACKS`. Here's a brief description of each topic:
 
@@ -32,15 +32,15 @@ The `broker` service is a Kafka "cluster" consisting of a sinkgle broker. The to
 
 > NOTE: A production-level integration engine would have more brokers in the cluster, and would set the replication factor to a value higher than one. This would add performance and durability.
 
-##### FHIR Converter
+#### FHIR Converter
 
 The conversion to FHIR is done with a containerized version of the [Microsoft FHIR Converter](https://github.com/microsoft/FHIR-Converter). The image can be found [here](https://hub.docker.com/r/microsoft/healthcareapis-fhir-converter).
 
-##### Storage
+#### Storage
 
 `minio` is used to replicate the use of an S3 bucket. A medallion-like architecture is utilized while processing the data. The `consumer` service ingests the raw message and saves it in a "bronze" layer, which represents data that has been accepted by the ingestion engine. The "silver" layer is utilized by the `transformer` service and serves as the final sink for the pipeline. Messages that successfully pass QA checks and convert to FHIR are placed in this bucket. This is the bucket data engineers would pull from to build "gold" layer tables, dashboards, and reports.
 
-##### Monitor
+#### Monitor
 
 The `monitor` service makes use of Grafana and Prometheous to monitor activity in the `producer`, `consumer`, `qa`, and `transformer` services. The following metrics are captured:
 - Message send rate  
@@ -50,7 +50,7 @@ The `monitor` service makes use of Grafana and Prometheous to monitor activity i
 
 ### Architecture - 1st-Party Services
 
-##### Producer
+#### Producer
 
 The `producer` generates `ADT_A01` and `ADT_A03` messages dynamically by making use of the `faker` and `random` libraries in Python. The [hl7_segment_generators.py](https://github.com/bryanbritten/hl7-integration/blob/main/docker/producer/generators/hl7_segment_generators.py) file defines the functions that create the segments in a given message. The [fake_data_generators.py](https://github.com/bryanbritten/hl7-integration/blob/main/docker/producer/generators/fake_data_generators.py) file is responsible for generating the random values that go in each field of the different segments. 
 
@@ -58,15 +58,15 @@ The `faker` library is used to generate random values for names, addresses, SSNs
 
 The `ADT_A01` and `ADT_A03` schemas were defined with the help of definitions provided by [Caristix](https://hl7-definition.caristix.com/v2/HL7v2.5/Segments).
 
-##### Consumer
+#### Consumer
 
 The `consumer` service is responsible for reading messages from Kafka and sending acknowledgement messages (i.e. `MSH-9.1 = ACK`) back to Kafka. On ingest, attempts are made to parse the message using the `hl7apy` library and validate that the message meets basic structural requirements. If any of those attempts fail the message is written to the `DLQ` topic and an acknowledgement with `acknowledgement_code=AE` is written to the `ACKS` topic. If all attempts are successful, the message is written to the `hl7.accepted` topic as well as the "bronze" bucket. An acknowledgement with `acknowledgement_code=AA` is sent to the `ACKS` topic.
 
-##### QA (Quality Assurance)
+#### QA (Quality Assurance)
 
 The `qa` service reads from the `hl7.accepted` topic in the `broker` service and performs a series of data quality checks using a combination of the `hl7apy` library and custom logic. If the data quality checks all pass, the message is written to the `hl7.validated` topic. Otherwise, the message is written to the `DLQ` topic with the QA failures included in the headers for later inspection. 
 
-##### Transformer
+#### Transformer
 
 The `transformer` service reads a message from the `hl7.validated` topic and sends the data to the `convertToFhir` API endpoint in the `fhir-converter` service. Successful conversions are then stored in the "silver" layer, while failed conversions are written to the `DLQ` topic.
 
