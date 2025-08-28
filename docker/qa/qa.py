@@ -16,11 +16,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-KAFKA_BROKERS = os.environ["KAFKA_BROKERS"]
-GROUP_ID = os.environ["VALIDATOR_GROUP_ID"]
-READ_TOPIC = os.environ["VALIDATOR_READ_TOPIC"]
-WRITE_TOPIC = os.environ["VALIDATOR_WRITE_TOPIC"]
+KAFKA_BROKERS = os.environ["QA_BROKERS"]
+GROUP_ID = os.environ["QA_GROUP_ID"]
+READ_TOPIC = os.environ["QA_READ_TOPIC"]
+WRITE_TOPIC = os.environ["QA_WRITE_TOPIC"]
 DLQ_TOPIC = os.environ["DLQ_TOPIC"]
+RULES = os.environ["QA_RULES"]
 
 
 def main() -> None:
