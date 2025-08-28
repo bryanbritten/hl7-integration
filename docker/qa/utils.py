@@ -74,9 +74,3 @@ def process_message(
             dlq_topic=dlq_topic,
         )
         return
-
-    headers = [
-        to_header("hl7.message.type", message_type),
-        to_header("consumer.group.id", "hl7-qa"),
-    ]
-    write_to_topic(message, write_topic, headers)
