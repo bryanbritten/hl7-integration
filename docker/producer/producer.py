@@ -9,11 +9,11 @@ from dotenv import load_dotenv
 from prometheus_client import start_http_server
 
 from common.helpers.hl7 import (
-    MESSAGE_REGISTRY,
     manually_extract_msh_segment,
     parse_msh_segment,
 )
 from common.metrics import messages_sent_total
+from common.registries import HL7_SCHEMA_REGISTRY
 from generators.hl7_segment_generators import generate_segments
 
 logging.basicConfig(
@@ -65,7 +65,7 @@ def build_message(message_type: str) -> bytes:
     Returns: bytes - The message encoded in UTF-8 if the message type is supported, else `None`.
     """
 
-    schema = MESSAGE_REGISTRY.get(message_type)
+    schema = HL7_SCHEMA_REGISTRY.get(message_type)
     if schema is None:
         return b""
 
