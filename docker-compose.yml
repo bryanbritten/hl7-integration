@@ -1,28 +1,12 @@
 services:
-  zookeeper:
-    build:
-      context: ./docker/broker/zookeeper
-    container_name: zookeeper
-    ports:
-      - "2181:2181"
-    restart: on-failure
-    healthcheck:
-      test: [ "CMD", "bash", "-c", "echo ruok | nc -w 2 localhost 2181 | grep imok" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
   kafka:
     build:
-      context: ./docker/broker/kafka
+      context: ./docker/broker
     container_name: kafka
     env_file:
       - .env
     ports:
-      - "9092:9092"
-    depends_on:
-      zookeeper:
-        condition: service_healthy
+      - "19092:19092"
     restart: on-failure
     healthcheck:
       test: [ "CMD", "bash", "-c", "kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1" ]
@@ -32,12 +16,12 @@ services:
       start_period: 30s
   kafka-init:
     build:
-      context: ./docker/broker/kafka
+      context: ./docker/broker
     depends_on:
       kafka:
-        condition: service_healthy
+        condition: service_started
     volumes:
-      - ./docker/broker/kafka/init-topics.sh:/init-topics.sh
+      - ./docker/broker/init-topics.sh:/init-topics.sh
     entrypoint: [ "/bin/bash", "init-topics.sh" ]
   minio:
     build:

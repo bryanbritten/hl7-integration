@@ -1,4 +1,0 @@
-FROM bitnami/zookeeper:3.9.3
-
-ENV ALLOW_ANONYMOUS_LOGIN=yes \
-    ZOO_4LW_COMMANDS_WHITELIST=ruok
