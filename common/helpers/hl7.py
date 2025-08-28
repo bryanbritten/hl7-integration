@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 
 from hl7apy.core import Message, Segment
 from hl7apy.exceptions import ParserError
@@ -183,7 +183,7 @@ class HL7Checker:
         _run = self.rules.get(rule)
 
         if not _run:
-            return RuleResult(
+            result = RuleResult(
                 Stamp("Fail"),
                 Issue(
                     "Rule",
@@ -191,22 +191,29 @@ class HL7Checker:
                     f"{rule} is not a defined rule for {self.message_type} message types",
                 ),
             )
+        else:
+            result = _run(self.message)
 
-        result = _run(self.message)
+        result.rule = rule
         return result
 
-    def run_rules(self, rules: list[str]) -> list[RuleResult]:
+    def run_rules(
+        self, rules: list[str], return_results: bool = False
+    ) -> Optional[list[RuleResult]]:
         issues = []
         for rule in rules:
             result = self.run_rule(rule)
             issues.append(result)
-
         self.issues.extend(issues)
-        return issues
 
-    def run_all_rules(self) -> list[RuleResult]:
+        if return_results:
+            return issues
+
+    def run_all_rules(self, return_results: bool = False) -> Optional[list[RuleResult]]:
         all_rules = list(self.rules.keys())
-        return self.run_rules(all_rules)
+        results = self.run_rules(all_rules)
+        if return_results:
+            return results
 
 
 def get_msh_segment(message: bytes) -> Segment:

@@ -26,10 +26,11 @@ class Stamp:
     status: StampType
 
 
-@dataclass(frozen=True)
+Rule = Callable[[Message | Segment]]
+
+
+@dataclass()
 class RuleResult:
     stamp: Stamp
     issues: Optional[Issue]
-
-
-Rule = Callable[[Message | Segment]]
+    rule: Optional[str] = None
