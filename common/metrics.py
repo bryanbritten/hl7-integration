@@ -16,10 +16,22 @@ hl7_acks_total = Counter(
     ["status"],
 )
 
-message_failures_total = Counter(
-    "message_failures_total",
-    "Total number of HL7 messages that failed validation, or data quality checks",
-    ["type", "details", "stage", "message_type"],
+validation_checks_total = Counter(
+    "validation_checks_total",
+    "Total number of HL7 messages that have been processed by the Consumer service.",
+    ["message_type"],
+)
+
+validation_failed_total = Counter(
+    "validation_failed_total",
+    "Total number of HL7 messages that failed the ingestion process.",
+    ["message_type"],
+)
+
+validation_error_total = Counter(
+    "validation_error_total",
+    "Count of valiation errors by reason (buckets are not mutually exclusive)",
+    ["details", "stage", "message_type"],
 )
 
 messages_passed_total = Counter(
