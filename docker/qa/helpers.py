@@ -5,7 +5,7 @@ from hl7apy.exceptions import ParserError
 from common.helpers.hl7 import HL7Checker, HL7Parser, ValidationError
 from common.helpers.kafka import to_header, write_to_topic
 from common.metrics import message_failures_total
-from common.rules import RULE_REGISTRY
+from common.registries import RULE_REGISTRY
 
 
 def handle_error(**kwargs):
