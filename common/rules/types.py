@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Callable, Literal, Optional
 
-from hl7apy.core import Message, Segment
+from hl7apy.core import Message
 
 IssueType = Literal[
     "InvalidValue",
@@ -33,4 +33,4 @@ class RuleResult:
     rule: Optional[str] = None
 
 
-Rule = Callable[[Message | Segment], RuleResult]
+Rule = Callable[[Message], RuleResult]
