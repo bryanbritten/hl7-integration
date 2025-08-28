@@ -10,11 +10,20 @@ from hl7apy.exceptions import ParserError
 from common.helpers.hl7 import (
     HL7Parser,
     HL7Validator,
-    ValidationError,
+    build_ack,
 )
-from common.helpers.kafka import generate_dlq_headers, to_header, write_to_topic
-from common.helpers.s3 import MINIO_BRONZE_BUCKET, write_data_to_s3
-from common.metrics import hl7_acks_total, message_failures_total
+from common.helpers.kafka import to_header, write_to_topic
+from common.helpers.s3 import write_data_to_s3
+from common.metrics.counters import hl7_acks_total, messages_accepted_total
+from common.metrics.labels import (
+    REASON_INVALID_CARDINALITY,
+    REASON_INVALID_SEGMENTS,
+    REASON_MISSING_MSH10,
+    REASON_MISSING_SEGMENTS,
+    REASON_PARSING_ERROR,
+    REASON_UNKNOWN,
+)
+from common.metrics.utils import record_validation_failures
 from common.registries import HL7_SCHEMA_REGISTRY
 
 logging.basicConfig(
@@ -26,105 +35,105 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 
-def build_ack(
-    acknowledgement_code: str,
-    message: Message,
-    error_message: Optional[str] = None,
-) -> bytes:
-    START = b"\x0b"
-    END = b"\x1c"
-    CR = b"\x0d"
-
-    separator = message.msh.msh_1.to_er7()  # type: ignore
-    message_control_id = message.msh.msh_10.to_er7()  # type: ignore
-    msh_segment = message.msh.to_er7()
-
-    msa_segment = separator.join(
-        # error_message is the only element in the list that will ever be None
-        # so HL7 structure compliance is guaranteed.
-        filter(None, ["MSA", acknowledgement_code, message_control_id, error_message])
-    ).encode("utf-8")
-
-    return START + msh_segment.encode("utf-8") + CR + msa_segment + END + CR
-
-
 def handle_error(
     e: Exception,
     raw_message: bytes,
     parsed_message: Optional[Message],
-    ack_topic: str,
+    message_type: str,
+    message_control_id: Optional[str],
     dlq_topic: str,
+    ack_topic: str,
 ) -> None:
-    """
-    This method is responsible for identifying the type of error that occurred and
-    sending an ACK message back with information about what went wrong as well as
-    writing to the Kafka Dead Letter Queue for manual review.
-
-    The errors are handled in the order in which they are most likely to occur.
-    """
-
     if isinstance(e, ParserError):
-        error_message = f"Failed to parse message: {e}"
-    elif isinstance(e, ValidationError):
-        error_message = f"Message failed validation: {e}"
+        failures = {REASON_PARSING_ERROR: True}
     else:
-        error_message = f"Unexpected error occurred: {e}"
+        failures = {REASON_UNKNOWN: True}
 
-    dlq_headers = generate_dlq_headers(
-        error_stage="ingestion",
-        error_message=error_message,
-    )
+    error_message = list(failures.keys())[0]
 
-    # if the message failed parsing, automatically sending an ACK doesn't make sense
-    # because there's no Message Control ID to match
+    headers = [
+        to_header("error.stage", "ingest"),
+        to_header("error.message", f"{error_message}: {e}"),
+        to_header("hl7.message.type", message_type),
+        to_header("consumer.group.id", "hl7.consumer"),
+    ]
+    write_to_topic(raw_message, dlq_topic, headers)
+
+    # if the message failed parsing, the MSH segment can't be automatically extracted
+    # in this scenario no ACK is automatically sent and the message requires manual review
     if parsed_message:
         ack = build_ack("AE", parsed_message, error_message)
-
-        # ACK messages are sent only for demonstrative purposes.
-        # In production, an ACK would likely not be sent automatically at this point.
-        # The message would be manually reviewed so that internal changes could be made
-        # if appropriate and the message could be reprocessed. An ACK would be sent after
-        # the message was reprocessed.
         write_to_topic(ack, ack_topic)
         hl7_acks_total.labels(status="AE").inc()
 
-    write_to_topic(raw_message, dlq_topic, dlq_headers)
+    record_validation_failures(message_type, message_control_id, failures)
 
 
-def record_validation_metrics(
+def handle_failures(
+    failures: dict[str, bool],
+    raw_message: bytes,
+    parsed_message: Message,
     message_type: str,
-    message_control_id: Optional[str] = None,
-    missing_segments: Optional[list[str]] = [],
-    invalid_segments: Optional[list[str]] = [],
-    violating_segments: Optional[list[str]] = [],
+    message_control_id: Optional[str],
+    dlq_topic: str,
+    ack_topic: str,
 ) -> None:
-    if missing_segments:
-        details = "Missing Required Segments"
-    elif invalid_segments:
-        details = "Invalid Segments"
-    elif violating_segments:
-        details = "Invalid Segment Cardinality"
-    elif message_control_id is None:
-        details = "Missing MSH-10 Field"
-    else:
-        details = "Unexpected Error"
+    failure_str = json.dumps(failures)
 
-    message_failures_total.labels(
-        type="validation",
-        details=details,
-        stage="ingestion",
-        message_type=message_type,
-    ).inc()
+    headers = [
+        to_header("hl7.message.type", message_type),
+        to_header("consumer.group.id", "hl7.qa"),
+        to_header("issues", failure_str),
+    ]
+    write_to_topic(raw_message, dlq_topic, headers)
+
+    ack = build_ack("AE", parsed_message, failure_str)
+    write_to_topic(ack, ack_topic)
+
+    record_validation_failures(message_type, message_control_id, failures)
+
+
+def handle_success(
+    raw_message: bytes,
+    parsed_message: Message,
+    message_type: str,
+    write_topic: str,
+    write_bucket: str,
+    ack_topic: str,
+) -> None:
+    # write raw message to S3 for future processing if needed
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
+    key = f"{message_type}/{timestamp}.hl7"
+    write_data_to_s3(
+        bucket=write_bucket,
+        key=key,
+        body=raw_message,
+    )
+
+    # see README.md to understand why an ACK is sent in this pipeline
+    ack = build_ack("AA", parsed_message)
+    write_to_topic(ack, ack_topic)
+    hl7_acks_total.labels(status="AA").inc()
+
+    # write to Kafka for further processing
+    headers = [
+        to_header("hl7.message.type", message_type),
+        to_header("consumer.group", "hl7.consumers"),
+        to_header("hl7.message.s3key", key),
+    ]
+    write_to_topic(raw_message, write_topic, headers)
+
+    messages_accepted_total.labels(message_type).inc()
 
 
 def process_message(
     message: bytes,
     message_type: str,
     write_topic: str,
+    write_bucket: str,
     ack_topic: str,
     dlq_topic: str,
 ) -> None:
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
     # initialize variables used in sending an ACK message
     parsed_message = None
     message_control_id = None
@@ -139,77 +148,42 @@ def process_message(
 
         message_control_id = parsed_message.msh.msh_10.value if parsed_message.msh.msh_10 else None
         if not message_control_id:
-            raise ValidationError("Failed to find valid MSH-10 value")
+            failures = {REASON_MISSING_MSH10: True}
+            handle_failures(
+                failures,
+                message,
+                parsed_message,
+                message_type,
+                message_control_id,
+                dlq_topic,
+                ack_topic,
+            )
+            return
 
         validator = HL7Validator(parsed_message, message_type, HL7_SCHEMA_REGISTRY)
-        missing_segments = validator.get_missing_required_segments()
-        invalid_segments = validator.get_invalid_segments()
-        violating_segments = validator.get_segment_cardinality_violations()
+        missing_segments = validator.has_required_segments()
+        invalid_segments = validator.all_segments_are_valid()
+        violating_segments = validator.segment_cardinality_is_valid()
 
         if missing_segments or invalid_segments or violating_segments:
-            bad_segments = {
-                "missing": ",".join(missing_segments),
-                "invalid": ",".join(invalid_segments),
-                "violating": ",".join(violating_segments),
+            failures = {
+                REASON_MISSING_SEGMENTS: True if missing_segments else False,
+                REASON_INVALID_SEGMENTS: True if invalid_segments else False,
+                REASON_INVALID_CARDINALITY: True if violating_segments else False,
             }
-            raise ValidationError(
-                f"Message contains erroneous segments: {json.dumps(bad_segments)}"
+            handle_failures(
+                failures,
+                message,
+                parsed_message,
+                message_type,
+                message_control_id,
+                dlq_topic,
+                ack_topic,
             )
-    except ParserError as pe:
-        handle_error(
-            e=pe,
-            raw_message=message,
-            parsed_message=parsed_message,
-            ack_topic=ack_topic,
-            dlq_topic=dlq_topic,
-        )
-        message_failures_total.labels(
-            type="parsing",
-            details="Failed to Parse Message",
-            stage="ingestion",
-            message_type=message_type,
-        ).inc()
-        return
-    except ValidationError as ve:
-        handle_error(
-            e=ve,
-            raw_message=message,
-            parsed_message=parsed_message,
-            ack_topic=ack_topic,
-            dlq_topic=dlq_topic,
-        )
-        record_validation_metrics(
-            message_type,
-            message_control_id,
-            missing_segments,
-            invalid_segments,
-            violating_segments,
-        )
-        return
+            return
+
+        handle_success(message, parsed_message, message_type, write_topic, write_bucket, ack_topic)
     except Exception as e:
         handle_error(
-            e=e,
-            raw_message=message,
-            parsed_message=parsed_message,
-            ack_topic=ack_topic,
-            dlq_topic=dlq_topic,
+            e, message, parsed_message, message_type, message_control_id, dlq_topic, ack_topic
         )
-        return
-
-    ack = build_ack("AA", parsed_message)
-    write_to_topic(ack, ack_topic)
-    hl7_acks_total.labels(status="AA").inc()
-
-    headers = [
-        to_header("hl7.message.type", message_type),
-        to_header("consumer.group", "hl7-consumers"),
-    ]
-    write_to_topic(message, write_topic, headers)
-
-    # write raw message to S3 for future processing if needed
-    key = f"{message_type}/{timestamp}.hl7"
-    write_data_to_s3(
-        bucket=MINIO_BRONZE_BUCKET,
-        key=key,
-        body=message,
-    )

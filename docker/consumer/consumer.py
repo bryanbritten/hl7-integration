@@ -6,7 +6,7 @@ from confluent_kafka import Consumer, KafkaError, TopicPartition
 from dotenv import load_dotenv
 from prometheus_client import start_http_server
 
-from common.metrics import messages_received_total
+from common.metrics.counters import messages_received_total
 from utils import process_message
 
 logging.basicConfig(
@@ -23,6 +23,7 @@ READ_TOPIC = os.environ["CONSUMER_READ_TOPIC"]
 WRITE_TOPIC = os.environ["CONSUMER_WRITE_TOPIC"]
 ACK_TOPIC = os.environ["ACK_TOPIC"]
 DLQ_TOPIC = os.environ["DLQ_TOPIC"]
+WRITE_BUCKET = os.environ["SILVER_BUCKET_NAME"]
 
 
 def main() -> None:
@@ -61,6 +62,7 @@ def main() -> None:
                 message,
                 message_type,
                 write_topic=WRITE_TOPIC,
+                write_bucket=WRITE_BUCKET,
                 ack_topic=ACK_TOPIC,
                 dlq_topic=DLQ_TOPIC,
             )
