@@ -4,13 +4,8 @@ import time
 from typing import Any
 
 import requests
-from prometheus_client import start_http_server
-
 from hl7_helpers import get_msh_segment
-from metrics import (
-    messages_fhir_conversion_attempts,
-    messages_fhir_conversion_successes,
-)
+from prometheus_client import start_http_server
 from s3_helpers import (
     FHIR_CONVERTER_API_VERSION,
     MINIO_DEADLETTER_BUCKET,
@@ -20,6 +15,11 @@ from s3_helpers import (
     get_message_from_s3,
     move_message_to_processed,
     write_data_to_s3,
+)
+
+from metrics import (
+    messages_fhir_conversion_attempts,
+    messages_fhir_conversion_successes,
 )
 
 logging.basicConfig(

@@ -13,6 +13,7 @@ known_first_party = [
     "common",
     "generators",
     "decorators",
+    "utils",
 ]
 
 [tool.ruff]

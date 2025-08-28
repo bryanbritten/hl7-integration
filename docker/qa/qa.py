@@ -4,8 +4,9 @@ import time
 
 from confluent_kafka import Consumer, KafkaError, TopicPartition
 from dotenv import load_dotenv
-from helpers import process_message
 from prometheus_client import start_http_server
+
+from utils import process_message
 
 load_dotenv()
 

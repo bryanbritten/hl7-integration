@@ -4,10 +4,10 @@ import time
 
 from confluent_kafka import Consumer, KafkaError, TopicPartition
 from dotenv import load_dotenv
-from helpers import process_message
 from prometheus_client import start_http_server
 
 from common.metrics import messages_received_total
+from utils import process_message
 
 logging.basicConfig(
     level=logging.INFO,

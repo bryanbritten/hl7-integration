@@ -1,8 +1,9 @@
 import random
 from datetime import datetime
 
-from decorators.error_rates import with_error_rate
 from faker import Faker
+
+from decorators.error_rates import with_error_rate
 
 faker = Faker()
 
