@@ -56,9 +56,10 @@ def handle_failures(
 
 
 def handle_success(message: bytes, s3key: str, write_bucket: str) -> None:
+    fhir_key = s3key.replace(".hl7", ".json")
     write_data_to_s3(
         bucket=write_bucket,
-        key=s3key,
+        key=fhir_key,
         body=message,
     )
 
