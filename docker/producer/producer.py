@@ -126,5 +126,5 @@ def main():
 
 if __name__ == "__main__":
     start_http_server(8000)
-    logger.info(f"Producer starting. Brokers: {KAFKA_BROKERS} Topic: {WRITE_TOPIC}")
+    logger.info(f"Producer service starting. Brokers: {KAFKA_BROKERS} Topics: W:{WRITE_TOPIC}")
     main()

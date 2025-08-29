@@ -47,7 +47,7 @@ def main() -> None:
             if msg.error().code() == KafkaError._PARTITION_EOF:
                 continue
             else:
-                logger.error(f"Consumer error: {msg.error()}")
+                logger.error(f"Kafka consumer error: {msg.error()}")
                 continue
 
         message = msg.value()
@@ -82,5 +82,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     start_http_server(8000)
-    logger.info(f"Consumer service starting. Brokers: {KAFKA_BROKERS} Topic: {READ_TOPIC}")
+    logger.info(
+        f"Consumer service starting. Brokers: {KAFKA_BROKERS} Topics: R:{READ_TOPIC},W:{WRITE_TOPIC} Buckets: {WRITE_BUCKET}"
+    )
     main()
