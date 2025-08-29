@@ -72,11 +72,5 @@ def process_message(
 
         handle_success(message, message_type, write_topic, group_id)
     except Exception as e:
-        handle_error(
-            e=e,
-            message=message,
-            message_type=message_type,
-            dlq_topic=dlq_topic,
-            group_id=group_id,
-        )
+        handle_error(e, message, message_type, dlq_topic, group_id)
         return
