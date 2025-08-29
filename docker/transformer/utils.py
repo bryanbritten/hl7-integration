@@ -9,7 +9,7 @@ def handle_error(
     dlq_topic: str,
 ) -> None:
     headers = [
-        to_header("error.stage", "qa"),
+        to_header("error.stage", "transformation"),
         to_header("error.message", f"Unexpected error occurred: {e}"),
         to_header("hl7.message.type", message_type),
         to_header("consumer.group.id", "hl7.transformers"),
@@ -21,7 +21,7 @@ def handle_failures(*args) -> None:
     pass
 
 
-def handle_success(message: bytes, message_type: str, write_bucket: str) -> None:
+def handle_success(message: bytes, message_type: str, s3key: str, write_bucket: str) -> None:
     pass
 
 
@@ -29,6 +29,7 @@ def process_message(
     message: bytes,
     message_type: str,
     fhir_url: str,
+    s3key: str,
     silver_bucket_name: str,
     dlq_topic: str,
 ) -> None:
@@ -38,7 +39,7 @@ def process_message(
 
         results = fhir_api_response.json()
 
-        handle_success(message, message_type, silver_bucket_name)
+        handle_success(message, message_type, s3key, silver_bucket_name)
     except Exception as e:
         handle_error(
             e=e,

@@ -55,9 +55,12 @@ def main() -> None:
                 (v.decode("utf-8") for k, v in msg.headers() if k == "hl7.message.type"),
                 "",
             )
+            s3key = next(
+                (v.decode("utf-8") for k, v in msg.headers() if k == "hl7.message.s3key"), ""
+            )
 
             try:
-                process_message(message, message_type, FHIR_URL, WRITE_BUCKET, DLQ_TOPIC)
+                process_message(message, message_type, FHIR_URL, s3key, WRITE_BUCKET, DLQ_TOPIC)
                 consumer.commit(message=msg)
             except Exception as e:
                 logger.exception(f"Processing failed. Not committing offset. Details: {e}")
