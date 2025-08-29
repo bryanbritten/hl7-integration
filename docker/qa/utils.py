@@ -16,7 +16,7 @@ def handle_error(
         to_header("error.stage", "qa"),
         to_header("error.message", f"Unexpected error occurred: {e}"),
         to_header("hl7.message.type", message_type),
-        to_header("consumer.group.id", "hl7-qa"),
+        to_header("consumer.group.id", "hl7.qa"),
     ]
     write_to_topic(message, dlq_topic, headers)
 
@@ -27,7 +27,7 @@ def handle_failures(
     quality_issues = {failure.rule: failure.issues for failure in failures}
     headers = [
         to_header("hl7.message.type", message_type),
-        to_header("consumer.group.id", "hl7-qa"),
+        to_header("consumer.group.id", "hl7.qa"),
         to_header("issues", json.dumps(quality_issues)),
     ]
     write_to_topic(message, dlq_topic, headers)
@@ -36,7 +36,7 @@ def handle_failures(
 def handle_success(message: bytes, message_type: str, write_topic: str) -> None:
     headers = [
         to_header("hl7.message.type", message_type),
-        to_header("consumer.group.id", "hl7-qa"),
+        to_header("consumer.group.id", "hl7.qa"),
     ]
     write_to_topic(message, write_topic, headers)
 
