@@ -1,18 +1,5 @@
-import requests
-from requests import Response
-
+from common.helpers.fhir import convert_hl7_to_fhir
 from common.helpers.kafka import to_header, write_to_topic
-
-
-def convert_hl7_to_fhir(message: bytes, message_type: str, fhir_url: str) -> Response:
-    URL = fhir_url
-    data = {
-        "InputDataFormat": "Hl7v2",
-        "RootTemplateName": message_type,
-        "InputDataString": message.decode("utf-8"),
-    }
-    response = requests.post(URL, json=data)
-    return response
 
 
 def handle_error(
