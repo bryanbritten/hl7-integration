@@ -302,7 +302,7 @@
                 {
                     "disableTextWrap": false,
                     "editorMode": "code",
-                    "expr": "sum by (details) (rate(message_failures_total[1m]))",
+                    "expr": "sum by (details) (rate(validation_error_total[1m]))",
                     "fullMetaSearch": false,
                     "includeNullMetadata": true,
                     "legendFormat": "__auto",
@@ -399,7 +399,7 @@
             "targets": [
                 {
                     "editorMode": "code",
-                    "expr": "rate(messages_fhir_conversion_successes_total{message_type=\"ADT_A01\"}[1m]) / rate(messages_fhir_conversion_attempts_total{message_type=\"ADT_A01\"}[1m])",
+                    "expr": "(sum by (message_type) (rate(fhir_conversion_failed_total[1m])) / clamp_min(sum by (stage, message_type) (rate(fhir_conversion_attempted_total[1m])), 1e-9))\nor on (message_type)\n(0 * sum by (message_type) (rate(fhir_conversion_attempted_total[1m])))",
                     "legendFormat": "__auto",
                     "range": true,
                     "refId": "A"
