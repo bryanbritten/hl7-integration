@@ -8,7 +8,7 @@ done
 
 echo "Successfully connected to MinIO..."
 
-for b in bronze silver gold deadletter; do
+for b in bronze silver; do
   mc mb --ignore-existing "local/$b" || true
   mc anonymous set public "local/$b" || true
 done
