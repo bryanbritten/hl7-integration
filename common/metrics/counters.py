@@ -40,20 +40,20 @@ messages_passed_total = Counter(
     ["message_type"],
 )
 
-messages_fhir_conversion_attempts = Counter(
+fhir_conversion_attempted_total = Counter(
     "messages_fhir_conversion_attempts",
-    "Total number of HL7 messages sent to the FHIR Converter API.",
+    "Count of FHIR conversion attempts",
     ["message_type"],
 )
 
-messages_fhir_conversion_failures = Counter(
+fhir_conversion_error_total = Counter(
     "messages_fhir_conversion_failures",
     "Count of FHIR conversion failures by reason (buckets are not mutually exclusive)",
     ["details", "message_type"],
 )
 
-messages_fhir_conversion_successes = Counter(
+fhir_conversion_failed_total = Counter(
     "messages_fhir_conversion_successes",
-    "Total number of HL7 messages successfully converted to the FHIR format.",
+    "Count of HL7 messages that failed FHIR conversion",
     ["message_type"],
 )
