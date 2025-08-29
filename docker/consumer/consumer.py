@@ -23,7 +23,7 @@ READ_TOPIC = os.environ["CONSUMER_READ_TOPIC"]
 WRITE_TOPIC = os.environ["CONSUMER_WRITE_TOPIC"]
 ACK_TOPIC = os.environ["ACK_TOPIC"]
 DLQ_TOPIC = os.environ["DLQ_TOPIC"]
-WRITE_BUCKET = os.environ["SILVER_BUCKET_NAME"]
+WRITE_BUCKET = os.environ["BRONZE_BUCKET_NAME"]
 
 
 def main() -> None:
