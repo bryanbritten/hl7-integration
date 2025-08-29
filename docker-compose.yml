@@ -100,10 +100,6 @@ services:
     env_file:
       - .env
     depends_on:
-      minio:
-        condition: service_healthy
-      minio-client:
-        condition: service_completed_successfully
       kafka:
         condition: service_healthy
       kafka-init:
@@ -138,9 +134,13 @@ services:
     depends_on:
       minio:
         condition: service_healthy
-      fhir-converter:
-        condition: service_healthy
+      minio-client:
+        condition: service_completed_successfully
       kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+      fhir-converter:
         condition: service_healthy
     restart: on-failure
     healthcheck:
