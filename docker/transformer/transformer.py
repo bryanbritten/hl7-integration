@@ -26,53 +26,50 @@ WRITE_BUCKET = "silver"
 
 
 def main() -> None:
+    consumer = Consumer(
+        {
+            "bootstrap.servers": KAFKA_BROKERS,
+            "group.id": GROUP_ID,
+            "auto.offset.reset": "earliest",
+            "enable.auto.commit": False,
+        }
+    )
+    consumer.subscribe([READ_TOPIC])
+
     while True:
-        consumer = Consumer(
-            {
-                "bootstrap.servers": KAFKA_BROKERS,
-                "group.id": GROUP_ID,
-                "auto.offset.reset": "earliest",
-                "enable.auto.commit": False,
-            }
+        msg = consumer.poll(timeout=10.0)
+
+        if msg is None:
+            continue
+
+        if msg.error():
+            if msg.error().code() == KafkaError._PARTITION_EOF:
+                continue
+            else:
+                logger.error(f"Kafka consumer error: {msg.error()}")
+                continue
+
+        message = msg.value()
+        message_type = next(
+            (v.decode("utf-8") for k, v in msg.headers() if k == "hl7.message.type"),
+            "",
         )
-        consumer.subscribe([READ_TOPIC])
+        s3key = next((v.decode("utf-8") for k, v in msg.headers() if k == "hl7.message.s3key"), "")
 
-        while True:
-            msg = consumer.poll(timeout=10.0)
+        try:
+            process_message(message, message_type, FHIR_URL, s3key, WRITE_BUCKET, DLQ_TOPIC)
+            consumer.commit(message=msg)
+        except Exception as e:
+            logger.exception(f"Processing failed. Not committing offset. Details: {e}")
 
-            if msg is None:
-                continue
-
-            if msg.error():
-                if msg.error().code() == KafkaError._PARTITION_EOF:
-                    continue
-                else:
-                    logger.error(f"Kafka consumer error: {msg.error()}")
-                    continue
-
-            message = msg.value()
-            message_type = next(
-                (v.decode("utf-8") for k, v in msg.headers() if k == "hl7.message.type"),
-                "",
-            )
-            s3key = next(
-                (v.decode("utf-8") for k, v in msg.headers() if k == "hl7.message.s3key"), ""
-            )
-
-            try:
-                process_message(message, message_type, FHIR_URL, s3key, WRITE_BUCKET, DLQ_TOPIC)
-                consumer.commit(message=msg)
-            except Exception as e:
-                logger.exception(f"Processing failed. Not committing offset. Details: {e}")
-
-                # "rewind" the partition so that it sticks on the broken message
-                # this will cause this consumer to freeze on that message causing
-                # an alert so that it can be fixed.
-                # TODO: Determine what metric makes sense here
-                tp = TopicPartition(msg.topic(), msg.partition(), msg.offset())
-                consumer.seek(tp)
-                time.sleep(1.0)
-                continue
+            # "rewind" the partition so that it sticks on the broken message
+            # this will cause this consumer to freeze on that message causing
+            # an alert so that it can be fixed.
+            # TODO: Determine what metric makes sense here
+            tp = TopicPartition(msg.topic(), msg.partition(), msg.offset())
+            consumer.seek(tp)
+            time.sleep(1.0)
+            continue
 
 
 if __name__ == "__main__":
