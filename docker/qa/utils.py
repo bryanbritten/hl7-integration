@@ -41,8 +41,11 @@ def handle_failures(
     write_to_topic(message, dlq_topic, headers)
 
 
-def handle_success(message: bytes, message_type: str, write_topic: str, group_id: str) -> None:
+def handle_success(
+    message: bytes, message_type: str, s3key, write_topic: str, group_id: str
+) -> None:
     headers = [
+        to_header("hl7.message.s3key", s3key),
         to_header("hl7.message.type", message_type),
         to_header("consumer.group.id", group_id),
     ]
@@ -53,6 +56,7 @@ def process_message(
     message: bytes,
     message_type: str,
     write_topic: str,
+    s3key: str,
     dlq_topic: str,
     group_id: str,
 ) -> None:
@@ -70,7 +74,7 @@ def process_message(
             handle_failures(failures, message, message_type, dlq_topic, group_id)
             return
 
-        handle_success(message, message_type, write_topic, group_id)
+        handle_success(message, message_type, s3key, write_topic, group_id)
     except Exception as e:
         handle_error(e, message, message_type, dlq_topic, group_id)
         return
