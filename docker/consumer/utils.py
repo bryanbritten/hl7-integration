@@ -139,10 +139,6 @@ def process_message(
     # initialize variables used in sending an ACK message
     parsed_message = None
     message_control_id = None
-    # initialize validation metrics
-    missing_segments = []
-    invalid_segments = []
-    violating_segments = []
 
     try:
         parser = HL7Parser()

@@ -49,10 +49,6 @@ def handle_success(message: bytes, message_type: str, write_topic: str, group_id
     write_to_topic(message, write_topic, headers)
 
 
-def record_failures(*args):
-    pass
-
-
 def process_message(
     message: bytes,
     message_type: str,
