@@ -12,7 +12,7 @@ from common.helpers.hl7 import (
     manually_extract_msh_segment,
     parse_msh_segment,
 )
-from common.metrics import messages_sent_total
+from common.metrics.counters import messages_sent_total
 from common.registries import HL7_SCHEMA_REGISTRY
 from generators.hl7_segment_generators import generate_segments
 
