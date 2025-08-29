@@ -93,7 +93,6 @@ services:
       retries: 5
       start_period: 30s
   qa:
-    profiles: [ "fhir", "transformer", "qa" ]
     build:
       context: .
       dockerfile: docker/qa/Dockerfile
@@ -117,7 +116,6 @@ services:
       retries: 5
       start_period: 30s
   fhir-converter:
-    profiles: [ "fhir" ]
     build:
       context: ./docker/fhir-converter
     container_name: fhir-converter
@@ -131,7 +129,6 @@ services:
       retries: 3
       start_period: 10s
   transformer:
-    profiles: [ "fhir", "transformer" ]
     build:
       context: .
       dockerfile: docker/transformer/Dockerfile
