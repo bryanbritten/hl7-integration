@@ -17,7 +17,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 FHIR_CONVERTER_API_VERSION = os.environ["FHIR_CONVERTER_API_VERSION"]
-FHIR_URL = os.environ["FHIR_BASE_URL"] + f"api-version={FHIR_CONVERTER_API_VERSION}"
+FHIR_CONVERTER_BASE_URL = os.environ["FHIR_CONVERTER_BASE_URL"]
+FHIR_URL = f"{FHIR_CONVERTER_BASE_URL}?api-version={FHIR_CONVERTER_API_VERSION}"
 KAFKA_BROKERS = os.environ["KAFKA_BROKERS"]
 GROUP_ID = os.environ["TRANSFORMER_GROUP_ID"]
 READ_TOPIC = os.environ["TRANSFORMER_READ_TOPIC"]
