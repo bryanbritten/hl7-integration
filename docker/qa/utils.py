@@ -11,32 +11,40 @@ def handle_error(
     message: bytes,
     message_type: str,
     dlq_topic: str,
+    group_id: str,
 ) -> None:
     headers = [
-        to_header("error.stage", "qa"),
-        to_header("error.message", f"Unexpected error occurred: {e}"),
         to_header("hl7.message.type", message_type),
-        to_header("consumer.group.id", "hl7.qa"),
+        to_header("consumer.group.id", group_id),
+        to_header("error.stage", "qa"),
+        to_header("error.type", "error"),
+        to_header("error.message", f"Unexpected error occurred: {e}"),
     ]
     write_to_topic(message, dlq_topic, headers)
 
 
 def handle_failures(
-    failures: list[RuleResult], message: bytes, message_type: str, dlq_topic: str
+    failures: list[RuleResult],
+    message: bytes,
+    message_type: str,
+    dlq_topic: str,
+    group_id: str,
 ) -> None:
     quality_issues = {failure.rule: failure.issues for failure in failures}
     headers = [
         to_header("hl7.message.type", message_type),
-        to_header("consumer.group.id", "hl7.qa"),
-        to_header("issues", json.dumps(quality_issues)),
+        to_header("consumer.group.id", group_id),
+        to_header("error.stage", "qa"),
+        to_header("error.type", "failure"),
+        to_header("error.message", json.dumps(quality_issues)),
     ]
     write_to_topic(message, dlq_topic, headers)
 
 
-def handle_success(message: bytes, message_type: str, write_topic: str) -> None:
+def handle_success(message: bytes, message_type: str, write_topic: str, group_id: str) -> None:
     headers = [
         to_header("hl7.message.type", message_type),
-        to_header("consumer.group.id", "hl7.qa"),
+        to_header("consumer.group.id", group_id),
     ]
     write_to_topic(message, write_topic, headers)
 
@@ -50,6 +58,7 @@ def process_message(
     message_type: str,
     write_topic: str,
     dlq_topic: str,
+    group_id: str,
 ) -> None:
     parsed_message = None
 
@@ -62,15 +71,16 @@ def process_message(
 
         failures = [result for result in results if result.stamp == "Fail"]
         if failures:
-            handle_failures(failures, message, message_type, dlq_topic)
+            handle_failures(failures, message, message_type, dlq_topic, group_id)
             return
 
-        handle_success(message, message_type, write_topic)
+        handle_success(message, message_type, write_topic, group_id)
     except Exception as e:
         handle_error(
             e=e,
             message=message,
             message_type=message_type,
             dlq_topic=dlq_topic,
+            group_id=group_id,
         )
         return

@@ -55,7 +55,7 @@ def main() -> None:
         )
 
         try:
-            process_message(message, message_type, WRITE_TOPIC, DLQ_TOPIC)
+            process_message(message, message_type, WRITE_TOPIC, DLQ_TOPIC, GROUP_ID)
             consumer.commit(message=msg)
         except Exception as e:
             logger.exception(f"Processing failed. Not committing offset. Details: {e}")

@@ -63,8 +63,9 @@ def main() -> None:
                 message_type,
                 write_topic=WRITE_TOPIC,
                 write_bucket=WRITE_BUCKET,
-                ack_topic=ACK_TOPIC,
                 dlq_topic=DLQ_TOPIC,
+                ack_topic=ACK_TOPIC,
+                group_id=GROUP_ID,
             )
             consumer.commit(message=msg)
         except Exception as e:

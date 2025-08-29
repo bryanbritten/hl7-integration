@@ -3,7 +3,6 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from dotenv import load_dotenv
 from hl7apy.core import Message
 from hl7apy.exceptions import ParserError
 
@@ -32,8 +31,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-load_dotenv()
-
 
 def handle_error(
     e: Exception,
@@ -43,6 +40,7 @@ def handle_error(
     message_control_id: Optional[str],
     dlq_topic: str,
     ack_topic: str,
+    group_id: str,
 ) -> None:
     if isinstance(e, ParserError):
         failures = {REASON_PARSING_ERROR: True}
@@ -52,10 +50,10 @@ def handle_error(
     error_message = list(failures.keys())[0]
 
     headers = [
+        to_header("hl7.message.type", message_type),
+        to_header("consumer.group.id", group_id),
         to_header("error.stage", "ingest"),
         to_header("error.message", f"{error_message}: {e}"),
-        to_header("hl7.message.type", message_type),
-        to_header("consumer.group.id", "hl7.consumer"),
     ]
     write_to_topic(raw_message, dlq_topic, headers)
 
@@ -77,12 +75,14 @@ def handle_failures(
     message_control_id: Optional[str],
     dlq_topic: str,
     ack_topic: str,
+    group_id: str,
 ) -> None:
     failure_str = json.dumps(failures)
 
     headers = [
         to_header("hl7.message.type", message_type),
-        to_header("consumer.group.id", "hl7.qa"),
+        to_header("consumer.group.id", group_id),
+        to_header("error.state", "ingest"),
         to_header("issues", failure_str),
     ]
     write_to_topic(raw_message, dlq_topic, headers)
@@ -100,6 +100,7 @@ def handle_success(
     write_topic: str,
     write_bucket: str,
     ack_topic: str,
+    group_id: str,
 ) -> None:
     # write raw message to S3 for future processing if needed
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
@@ -118,7 +119,7 @@ def handle_success(
     # write to Kafka for further processing
     headers = [
         to_header("hl7.message.type", message_type),
-        to_header("consumer.group", "hl7.consumers"),
+        to_header("consumer.group.id", group_id),
         to_header("hl7.message.s3key", key),
     ]
     write_to_topic(raw_message, write_topic, headers)
@@ -133,6 +134,7 @@ def process_message(
     write_bucket: str,
     ack_topic: str,
     dlq_topic: str,
+    group_id: str,
 ) -> None:
     # initialize variables used in sending an ACK message
     parsed_message = None
@@ -157,6 +159,7 @@ def process_message(
                 message_control_id,
                 dlq_topic,
                 ack_topic,
+                group_id,
             )
             return
 
@@ -179,11 +182,21 @@ def process_message(
                 message_control_id,
                 dlq_topic,
                 ack_topic,
+                group_id,
             )
             return
 
-        handle_success(message, parsed_message, message_type, write_topic, write_bucket, ack_topic)
+        handle_success(
+            message, parsed_message, message_type, write_topic, write_bucket, ack_topic, group_id
+        )
     except Exception as e:
         handle_error(
-            e, message, parsed_message, message_type, message_control_id, dlq_topic, ack_topic
+            e,
+            message,
+            parsed_message,
+            message_type,
+            message_control_id,
+            dlq_topic,
+            ack_topic,
+            group_id,
         )
