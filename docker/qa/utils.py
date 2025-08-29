@@ -55,8 +55,8 @@ def handle_success(
 def process_message(
     message: bytes,
     message_type: str,
-    write_topic: str,
     s3key: str,
+    write_topic: str,
     dlq_topic: str,
     group_id: str,
 ) -> None:
