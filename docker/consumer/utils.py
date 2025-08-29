@@ -161,15 +161,15 @@ def process_message(
             return
 
         validator = HL7Validator(parsed_message, message_type, HL7_SCHEMA_REGISTRY)
-        missing_segments = validator.has_required_segments()
-        invalid_segments = validator.all_segments_are_valid()
-        violating_segments = validator.segment_cardinality_is_valid()
+        has_required_segments = validator.has_required_segments()
+        all_segments_are_valid = validator.all_segments_are_valid()
+        segment_cardinality_is_valid = validator.segment_cardinality_is_valid()
 
-        if missing_segments or invalid_segments or violating_segments:
+        if not (has_required_segments and all_segments_are_valid and segment_cardinality_is_valid):
             failures = {
-                REASON_MISSING_SEGMENTS: True if missing_segments else False,
-                REASON_INVALID_SEGMENTS: True if invalid_segments else False,
-                REASON_INVALID_CARDINALITY: True if violating_segments else False,
+                REASON_MISSING_SEGMENTS: not has_required_segments,
+                REASON_INVALID_SEGMENTS: not all_segments_are_valid,
+                REASON_INVALID_CARDINALITY: not segment_cardinality_is_valid,
             }
             handle_failures(
                 failures,
