@@ -1,26 +1,14 @@
-import json
 import logging
+import os
 import time
-from typing import Any
 
-import requests
-from hl7_helpers import get_msh_segment
+from confluent_kafka import Consumer, KafkaError, TopicPartition
+from dotenv import load_dotenv
 from prometheus_client import start_http_server
-from s3_helpers import (
-    FHIR_CONVERTER_API_VERSION,
-    MINIO_DEADLETTER_BUCKET,
-    MINIO_GOLD_BUCKET,
-    MINIO_SILVER_BUCKET,
-    POLL_INTERVAL,
-    get_message_from_s3,
-    move_message_to_processed,
-    write_data_to_s3,
-)
 
-from metrics import (
-    messages_fhir_conversion_attempts,
-    messages_fhir_conversion_successes,
-)
+from utils import process_message
+
+load_dotenv()
 
 logging.basicConfig(
     level=logging.INFO,
@@ -28,85 +16,60 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
-def convert_hl7_to_fhir(message: bytes, message_type: str) -> dict[str, Any]:
-    URL = f"http://fhir-converter:8080/convertToFhir?api-version={FHIR_CONVERTER_API_VERSION}"
-    data = {
-        "InputDataFormat": "Hl7v2",
-        "RootTemplateName": message_type,
-        "InputDataString": message.decode("utf-8"),
-    }
-    response = requests.post(URL, json=data)
-
-    if response.status_code != 200:
-        logger.error(f"Received status code {response.status_code} from FHIR Converter API")
-        return {}
-
-    return response.json()
+FHIR_CONVERTER_API_VERSION = os.environ["FHIR_CONVERTER_API_VERSION"]
+FHIR_URL = os.environ["FHIR_BASE_URL"] + f"api-version={FHIR_CONVERTER_API_VERSION}"
+KAFKA_BROKERS = os.environ["KAFKA_BROKERS"]
+GROUP_ID = os.environ["TRANSFORMER_GROUP_ID"]
+READ_TOPIC = os.environ["TRANSFORMER_READ_TOPIC"]
+DLQ_TOPIC = os.environ["DLQ_TOPIC"]
+WRITE_BUCKET = "silver"
 
 
 def main() -> None:
     while True:
-        key, message = get_message_from_s3(MINIO_SILVER_BUCKET)
-        if not message:
-            logger.info(f"Failed to find new messages. Checking again in {POLL_INTERVAL} seconds.")
-            time.sleep(POLL_INTERVAL)
-            continue
-
-        # at this stage in the pipeline, the messages have been validated
-        # so we can assume all fields are present and valid
-        msh_segment = get_msh_segment(message)
-        message_type = msh_segment.msh_9.msh_9_1.to_er7()
-        trigger_event = msh_segment.msh_9.msh_9_2.to_er7()
-        message_structure = msh_segment.msh_9.msh_9_3.to_er7()
-
-        messages_fhir_conversion_attempts.labels(message_type=message_structure).inc()
-        fhir_data = convert_hl7_to_fhir(message=message, message_type=message_structure)
-        if not fhir_data:
-            deadletter_key = key.replace(
-                f"unprocessed/{message_type}/{trigger_event}",
-                f"{message_type}/{trigger_event}/messages",
-            )
-            issues_key = key.replace(
-                f"unprocessed/{message_type}/{trigger_event}",
-                f"{message_type}/{trigger_event}/issues",
-            )
-
-            issue = {
-                "type": "conversion",
-                "severity": 5,
-                "message": "Failed to convert to FHIR.",
+        consumer = Consumer(
+            {
+                "bootstrap.servers": KAFKA_BROKERS,
+                "group.id": GROUP_ID,
+                "auto.offset.reset": "earliest",
+                "enable.auto.commit": False,
             }
-
-            write_data_to_s3(
-                bucket=MINIO_DEADLETTER_BUCKET,
-                key=deadletter_key,
-                body=message,
-            )
-
-            write_data_to_s3(
-                bucket=MINIO_DEADLETTER_BUCKET,
-                key=issues_key,
-                body=json.dumps(issue).encode("utf-8"),
-                content_type="application/json",
-            )
-
-            logger.error("Failed to convert message to FHIR")
-        else:
-            write_data_to_s3(
-                bucket=MINIO_GOLD_BUCKET,
-                key=key.replace("unprocessed/", "").replace(".hl7", ".json"),  # type: ignore
-                body=json.dumps(fhir_data).encode("utf-8"),
-                content_type="application/json",
-            )
-            logger.info("Successfully converted HL7 message to FHIR")
-            messages_fhir_conversion_successes.labels(message_type=message_structure).inc()
-
-        move_message_to_processed(
-            bucket=MINIO_SILVER_BUCKET,
-            source_key=key,
-            destination_key=key.replace("unprocessed", "processed"),  # type: ignore
         )
+        consumer.subscribe([READ_TOPIC])
+
+        while True:
+            msg = consumer.poll(timeout=10.0)
+
+            if msg is None:
+                continue
+
+            if msg.error():
+                if msg.error().code() == KafkaError._PARTITION_EOF:
+                    continue
+                else:
+                    logger.error(f"Consumer error: {msg.error()}")
+                    continue
+
+            message = msg.value()
+            message_type = next(
+                (v.decode("utf-8") for k, v in msg.headers() if k == "hl7.message.type"),
+                "",
+            )
+
+            try:
+                process_message(message, message_type, FHIR_URL, WRITE_BUCKET, DLQ_TOPIC)
+                consumer.commit(message=msg)
+            except Exception as e:
+                logger.exception(f"Processing failed. Not committing offset. Details: {e}")
+
+                # "rewind" the partition so that it sticks on the broken message
+                # this will cause this consumer to freeze on that message causing
+                # an alert so that it can be fixed.
+                # TODO: Determine what metric makes sense here
+                tp = TopicPartition(msg.topic(), msg.partition(), msg.offset())
+                consumer.seek(tp)
+                time.sleep(1.0)
+                continue
 
 
 if __name__ == "__main__":
