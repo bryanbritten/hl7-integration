@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 from requests.exceptions import HTTPError
 
@@ -55,12 +56,13 @@ def handle_failures(
     record_transformation_failures(message_type, failures)
 
 
-def handle_success(message: bytes, s3key: str, write_bucket: str) -> None:
+def handle_success(fhir_bundle: dict[str, Any], s3key: str, write_bucket: str) -> None:
     fhir_key = s3key.replace(".hl7", ".json")
+    data = json.dumps(fhir_bundle).encode("utf-8")
     write_data_to_s3(
         bucket=write_bucket,
         key=fhir_key,
-        body=message,
+        body=data,
     )
 
 
@@ -85,7 +87,7 @@ def process_message(
             )
             return
 
-        handle_success(message, s3key, silver_bucket_name)
+        handle_success(results, s3key, silver_bucket_name)
     except Exception as e:
         handle_error(e, message, message_type, dlq_topic, group_id)
         return
