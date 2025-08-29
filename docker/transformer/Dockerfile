@@ -3,7 +3,7 @@ FROM python:3.11-slim
 WORKDIR /transformer
 
 COPY docker/transformer/ /transformer
-COPY common/scripts/ /transformer/
+COPY common /transformer/common
 
 RUN pip install --no-cache-dir boto3 hl7apy requests prometheus-client python-dotenv
 
