@@ -1,6 +1,11 @@
 from typing import Optional
 
-from common.metrics.counters import validation_error_total, validation_failed_total
+from common.metrics.counters import (
+    fhir_conversion_error_total,
+    fhir_conversion_failed_total,
+    validation_error_total,
+    validation_failed_total,
+)
 from common.metrics.labels import REASON_MISSING_MSH10
 
 
@@ -18,3 +23,16 @@ def record_validation_failures(
 
     if reasons:
         validation_failed_total.labels(message_type).inc()
+
+
+def record_transformation_failures(
+    message_type: str,
+    failures: dict[str, bool] = {},
+) -> None:
+    reasons = [k for k, v in failures.items() if v]
+
+    for reason in reasons:
+        fhir_conversion_error_total.labels(reason, message_type).inc()
+
+    if reasons:
+        fhir_conversion_failed_total.labels(message_type).inc()
