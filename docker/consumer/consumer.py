@@ -1,12 +1,14 @@
 import logging
 import os
 import time
+from time import perf_counter
 
 from confluent_kafka import Consumer, KafkaError, TopicPartition
 from dotenv import load_dotenv
 from prometheus_client import start_http_server
 
 from common.metrics.counters import messages_received_total
+from common.metrics.timers import hl7_stage_duration_seconds
 from utils import process_message
 
 logging.basicConfig(
@@ -38,6 +40,7 @@ def main() -> None:
     consumer.subscribe([READ_TOPIC])
 
     while True:
+        t = perf_counter()
         msg = consumer.poll(timeout=10.0)
 
         if msg is None:
@@ -79,6 +82,10 @@ def main() -> None:
             consumer.seek(tp)
             time.sleep(1.0)
             continue
+        finally:
+            hl7_stage_duration_seconds.labels(
+                stage="ingest", message_type=message_type or "UNK"
+            ).observe(perf_counter() - t)
 
 
 if __name__ == "__main__":
